@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException
+from diagnose import diagnose_error, clean_log
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 import re
@@ -76,16 +77,24 @@ async def diagnose_build(payload: LogPayload):
 async def handle_github_webhook(request: Request):
     payload = await request.json()
     
-    # Check if the payload contains workflow run details
+    # 1. FIRST, check if this message is a workflow run
     if "workflow_run" in payload:
-        run_status = payload["workflow_run"]["status"]
-        conclusion = payload["workflow_run"]["conclusion"]
+        # 2. Extract the conclusion from the GitHub message and define the variable
+        conclusion = payload["workflow_run"].get("conclusion")
         
-        print(f"GitHub Action Status: {run_status} | Conclusion: {conclusion}")
-        
-        # If the build failed, we trigger the self-healing AI
+        # 3. NOW we can safely check if it failed
         if conclusion == "failure":
             print("Build failed! Triggering Groq AI for root cause analysis...")
-            # We will add the call to your diagnose.py here next
             
+            # Create a test log string with the word FATAL so your AI catches it
+            error_log = "FATAL: Process completed with exit code 1. Intentionally crashed build."
+            
+            # Send it to your diagnose.py function
+            diagnosis = diagnose_error(error_log)
+            
+            print("\n--- GROQ AI DIAGNOSIS ---")
+            print(diagnosis)
+            print("-------------------------\n")
+            
+    # 4. Return success to GitHub
     return {"status": "success", "message": "Webhook processed"}
