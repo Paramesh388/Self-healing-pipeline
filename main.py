@@ -73,28 +73,69 @@ async def diagnose_build(payload: LogPayload):
         diagnosis=diagnosis
     )
     
+# Store the latest GitHub failure in memory for the frontend dashboard
+latest_incident = {
+    "has_incident": False,
+    "repo": "",
+    "branch": "",
+    "commit_msg": "",
+    "error_log": "",
+    "diagnosis": "",
+    "timestamp": ""
+}
+
+@app.get("/api/latest-webhook")
+async def get_latest_webhook():
+    """Endpoint for index.html to fetch the latest automated GitHub diagnosis."""
+    return latest_incident
+
 @app.post("/api/webhook")
 async def handle_github_webhook(request: Request):
+    global latest_incident
     payload = await request.json()
     
-    # 1. FIRST, check if this message is a workflow run
     if "workflow_run" in payload:
-        # 2. Extract the conclusion from the GitHub message and define the variable
-        conclusion = payload["workflow_run"].get("conclusion")
+        wf = payload["workflow_run"]
+        run_status = wf.get("status")
+        conclusion = wf.get("conclusion")
         
-        # 3. NOW we can safely check if it failed
+        print(f"GitHub Action Status: {run_status} | Conclusion: {conclusion}")
+        
         if conclusion == "failure":
             print("Build failed! Triggering Groq AI for root cause analysis...")
             
-            # Create a test log string with the word FATAL so your AI catches it
-            error_log = "FATAL: Process completed with exit code 1. Intentionally crashed build."
+            # Extract real details from the GitHub webhook payload
+            repo_name = payload.get("repository", {}).get("full_name", "Paramesh388/Self-healing-pipeline")
+            branch_name = wf.get("head_branch", "main")
+            commit_msg = wf.get("head_commit", {}).get("message", "Update pipeline")
+            workflow_name = wf.get("name", "CI Pipeline")
+            run_number = wf.get("run_number", 1)
+            updated_at = wf.get("updated_at", "Just now")
             
-            # Send it to your diagnose.py function
-            diagnosis = diagnose_error(error_log)
+            # Build a realistic error context from the GitHub payload
+            error_context = (
+                f"FATAL: GitHub Actions Workflow '{workflow_name}' (Run #{run_number}) failed.\n"
+                f"Repository: {repo_name} | Branch: {branch_name}\n"
+                f"Triggering Commit: '{commit_msg}'\n"
+                f"ERROR: Process completed with exit code 1 during build step execution."
+            )
+            
+            # Get diagnosis from Groq AI
+            diagnosis = diagnose_error(error_context)
             
             print("\n--- GROQ AI DIAGNOSIS ---")
             print(diagnosis)
             print("-------------------------\n")
             
-    # 4. Return success to GitHub
+            # Save the result so index.html can display it automatically!
+            latest_incident = {
+                "has_incident": True,
+                "repo": repo_name,
+                "branch": branch_name,
+                "commit_msg": commit_msg,
+                "error_log": error_context,
+                "diagnosis": diagnosis,
+                "timestamp": updated_at
+            }
+            
     return {"status": "success", "message": "Webhook processed"}

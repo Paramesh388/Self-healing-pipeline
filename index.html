@@ -1,29 +1,203 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>CI/CD AI Dashboard</title>
-    <style>body { font-family: sans-serif; padding: 20px; }</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Self-Healing CI/CD Pipeline Dashboard</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            margin: 0;
+            padding: 25px;
+        }
+        .container {
+            max-width: 950px;
+            margin: 0 auto;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+        }
+        h1 { margin: 0; font-size: 24px; color: #38bdf8; }
+        .badge-live {
+            background-color: #065f46;
+            color: #34d399;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid #059669;
+        }
+        .card {
+            background-color: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        .card h2 {
+            margin-top: 0;
+            font-size: 18px;
+            color: #e2e8f0;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 10px;
+        }
+        .waiting-box {
+            text-align: center;
+            padding: 30px;
+            color: #94a3b8;
+            font-style: italic;
+        }
+        .incident-box {
+            display: none;
+            border-left: 4px solid #ef4444;
+            padding-left: 15px;
+        }
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            background: #0f172a;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+        }
+        .meta-item span { color: #94a3b8; display: block; font-size: 12px; }
+        .meta-item strong { color: #f8fafc; }
+        pre {
+            background-color: #0f172a;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            color: #cbd5e1;
+            border: 1px solid #334155;
+            font-size: 13.5px;
+            line-height: 1.5;
+        }
+        .error-pre { color: #f87171; border-color: #7f1d1d; }
+        .ai-pre { color: #38bdf8; border-color: #0369a1; }
+        textarea {
+            width: 100%;
+            height: 110px;
+            background-color: #0f172a;
+            color: #f8fafc;
+            border: 1px solid #334155;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: monospace;
+            box-sizing: border-box;
+            margin-bottom: 12px;
+        }
+        button {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        button:hover { background-color: #1d4ed8; }
+    </style>
 </head>
 <body>
-    <h2>Build Failure Analyzer</h2>
-    <textarea id="logInput" rows="5" cols="50" placeholder="Paste your failed log here..."></textarea><br><br>
-    <button onclick="analyzeLog()">Analyze with AI</button>
-    <h3>Diagnosis:</h3>
-    <pre id="result" style="background: #f4f4f4; padding: 10px;"></pre>
+    <div class="container">
+        <header>
+            <div>
+                <h1>⚡ Towards Self-Healing CI/CD Pipelines</h1>
+                <small style="color: #94a3b8;">Automated GitHub Actions Webhook & Groq Llama-3.3 Root Cause Analyzer</small>
+            </div>
+            <div class="badge-live" id="statusBadge">● Listening for GitHub Webhooks...</div>
+        </header>
+
+        <!-- SECTION 1: LIVE GITHUB WEBHOOK MONITOR -->
+        <div class="card">
+            <h2>🔴 Live GitHub CI/CD Failure Feed (Automated Phase 4)</h2>
+            <div id="waitingState" class="waiting-box">
+                Waiting for GitHub Action events... Push a failing commit or trigger a webhook delivery to see instant AI root cause analysis.
+            </div>
+            <div id="incidentState" class="incident-box">
+                <div class="meta-grid">
+                    <div class="meta-item"><span>Repository</span><strong id="repoName">-</strong></div>
+                    <div class="meta-item"><span>Branch</span><strong id="branchName">-</strong></div>
+                    <div class="meta-item"><span>Commit Message</span><strong id="commitMsg">-</strong></div>
+                </div>
+                <h4 style="margin-bottom: 6px; color: #f87171;">Captured Pipeline Failure Log:</h4>
+                <pre id="webhookLog" class="error-pre"></pre>
+                <h4 style="margin-bottom: 6px; color: #38bdf8;">🤖 Groq AI Automated Diagnosis & Fix:</h4>
+                <pre id="webhookDiagnosis" class="ai-pre"></pre>
+            </div>
+        </div>
+
+        <!-- SECTION 2: MANUAL LOG ANALYZER -->
+        <div class="card">
+            <h2>🛠️ Manual Build Log Analyzer (On-Demand Test)</h2>
+            <textarea id="rawLogInput" placeholder="Paste raw CI/CD build logs here (must include ERROR, FATAL, FAIL, or Exception)...">INFO: Starting build process...
+ERROR: ModuleNotFoundError: No module named 'fastapi'
+FATAL: Build process exited with code 1</textarea>
+            <button onclick="runManualDiagnosis()" id="analyzeBtn">Analyze Log with Groq AI</button>
+            <div id="manualResult" style="display:none; margin-top: 15px;">
+                <h4 style="margin-bottom: 6px; color: #f87171;">Sanitized Error Lines:</h4>
+                <pre id="manualCleaned" class="error-pre"></pre>
+                <h4 style="margin-bottom: 6px; color: #38bdf8;">🤖 Groq AI Diagnosis:</h4>
+                <pre id="manualDiagnosis" class="ai-pre"></pre>
+            </div>
+        </div>
+    </div>
 
     <script>
-        async function analyzeLog() {
-            const logData = document.getElementById('logInput').value;
-            document.getElementById('result').innerText = "Analyzing...";
-            
-            const response = await fetch('http://127.0.0.1:8000/api/diagnose', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ raw_log: logData })
-            });
-            
-            const data = await response.json();
-            document.getElementById('result').innerText = data.diagnosis || "Error connecting to AI.";
+        // Poll the FastAPI backend every 3 seconds for new GitHub Webhook failures
+        async function checkLatestWebhook() {
+            try {
+                const res = await fetch("http://localhost:8000/api/latest-webhook");
+                const data = await res.json();
+                if (data.has_incident) {
+                    document.getElementById("waitingState").style.display = "none";
+                    document.getElementById("incidentState").style.display = "block";
+                    document.getElementById("repoName").textContent = data.repo;
+                    document.getElementById("branchName").textContent = data.branch;
+                    document.getElementById("commitMsg").textContent = data.commit_msg;
+                    document.getElementById("webhookLog").textContent = data.error_log;
+                    document.getElementById("webhookDiagnosis").textContent = data.diagnosis;
+                    document.getElementById("statusBadge").textContent = "⚠️ Build Failure Detected!";
+                    document.getElementById("statusBadge").style.backgroundColor = "#7f1d1d";
+                    document.getElementById("statusBadge").style.color = "#fca5a5";
+                }
+            } catch (err) {
+                console.error("Backend server offline:", err);
+            }
+        }
+        setInterval(checkLatestWebhook, 3000);
+        checkLatestWebhook();
+
+        // Manual log diagnosis function
+        async function runManualDiagnosis() {
+            const btn = document.getElementById("analyzeBtn");
+            const rawLog = document.getElementById("rawLogInput").value;
+            btn.textContent = "Querying Groq AI...";
+            try {
+                const res = await fetch("http://localhost:8000/api/diagnose", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ raw_log: rawLog })
+                });
+                const data = await res.json();
+                document.getElementById("manualResult").style.display = "block";
+                document.getElementById("manualCleaned").textContent = data.sanitized_log;
+                document.getElementById("manualDiagnosis").textContent = data.diagnosis;
+            } catch (err) {
+                alert("Error connecting to FastAPI server on port 8000.");
+            }
+            btn.textContent = "Analyze Log with Groq AI";
         }
     </script>
 </body>
