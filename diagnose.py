@@ -1,6 +1,10 @@
 import os
 import re
 import sys
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 from dataclasses import dataclass, field
 from typing import List
 from openai import OpenAI, NotFoundError
@@ -15,7 +19,7 @@ if hasattr(sys.stdout, "reconfigure"):
 # All API keys, endpoints, and settings are stored in this single object.
 @dataclass
 class AppConfig:
-    api_key: str = os.environ.get("GROQ_API_KEY", "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")
+    api_key: str = api_key = os.getenv("GROQ_API_KEY")
     base_url: str = "https://api.groq.com/openai/v1"
     model_name: str = "llama-3.3-70b-versatile"
     fallback_models: List[str] = field(default_factory=lambda: ["openai/gpt-oss-120b", "qwen/qwen3.8-27b"])
