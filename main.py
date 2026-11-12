@@ -1,117 +1,103 @@
-from fastapi import FastAPI, HTTPException
-from diagnose import diagnose_error, clean_log
-from pydantic import BaseModel
-from fastapi.middleware.cors import CORSMiddleware
-import re
 import os
-from groq import Groq
-from fastapi import Request
+from pathlib import Path
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
-# Initialize the FastAPI app and Groq client
+from diagnose import clean_log_text, diagnose_error
+
+load_dotenv()
+
+# Initialize the FastAPI app
 app = FastAPI(title="Self-Healing CI/CD API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], 
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-client = Groq(
-    api_key="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")
 
 # --- Data Models ---
 class LogPayload(BaseModel):
     raw_log: str
 
+
 class DiagnosisResponse(BaseModel):
     sanitized_log: str
     diagnosis: str
 
-# --- Core Engine Functions ---
-def clean_log_text(raw_text: str) -> str:
-    """Filters string payload for critical errors."""
-    pattern = re.compile(r"(ERROR|FATAL|FAIL|Exception)")
-    matching_lines = [line for line in raw_text.splitlines() if pattern.search(line)]
-    return "\n".join(matching_lines)
 
-def get_groq_diagnosis(sanitized_log: str) -> str:
-    """Calls Groq API with the cleaned log."""
+def run_ai_diagnosis(sanitized_log: str) -> str:
+    """Runs Groq RCA with automatic model fallback on sanitized log lines."""
     if not sanitized_log.strip():
-        return "No errors detected in the provided log."
-    
+        return "No critical error lines (ERROR, FATAL, FAIL, Exception) detected in the provided log."
     try:
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are an expert DevOps engineer. Analyze the following CI/CD log, identify the root cause of the failure, and provide a step-by-step fix."
-                },
-                {
-                    "role": "user",
-                    "content": sanitized_log,
-                }
-            ],
-            model="openai/gpt-oss-120b",
-        )
-        return chat_completion.choices[0].message.content
-    except Exception as e:
-        return f"AI Diagnosis Failed: {str(e)}"
+        return diagnose_error(sanitized_log)
+    except Exception as exc:
+        return f"AI Diagnosis Failed: {exc}"
 
-# --- API Endpoint ---
+
+# Store the latest GitHub status in memory for the frontend dashboard
+latest_incident = {
+    "status": "waiting",  # Can be "waiting", "failure", or "healed"
+    "repo": "",
+    "branch": "",
+    "commit_msg": "",
+    "workflow_name": "",
+    "run_number": None,
+    "error_log": "",
+    "diagnosis": "",
+    "timestamp": "",
+}
+
+
+@app.get("/")
+async def serve_dashboard():
+    """Serves the dashboard UI when accessed directly from the backend root."""
+    index_path = Path(__file__).resolve().parent / "index.html"
+    if not index_path.exists():
+        raise HTTPException(status_code=404, detail="Dashboard index.html not found.")
+    return FileResponse(index_path)
+
+
+# --- API Endpoints ---
 @app.post("/api/diagnose", response_model=DiagnosisResponse)
 async def diagnose_build(payload: LogPayload):
     if not payload.raw_log.strip():
         raise HTTPException(status_code=400, detail="Log cannot be empty.")
-    
+
     cleaned = clean_log_text(payload.raw_log)
-    diagnosis = get_groq_diagnosis(cleaned)
-    
+    diagnosis = run_ai_diagnosis(cleaned)
+
     return DiagnosisResponse(
         sanitized_log=cleaned,
-        diagnosis=diagnosis
+        diagnosis=diagnosis,
     )
-    
-# Store the latest GitHub failure in memory for the frontend dashboard
-latest_incident = {
-    "has_incident": False,
-    "repo": "",
-    "branch": "",
-    "commit_msg": "",
-    "error_log": "",
-    "diagnosis": "",
-    "timestamp": ""
-}
 
-# Store the latest GitHub status in memory for the frontend dashboard
-latest_incident = {
-    "status": "waiting", # Can be "waiting", "failure", or "healed"
-    "repo": "",
-    "branch": "",
-    "commit_msg": "",
-    "error_log": "",
-    "diagnosis": "",
-    "timestamp": ""
-}
 
 @app.get("/api/latest-webhook")
 async def get_latest_webhook():
     """Endpoint for index.html to fetch the latest automated GitHub status."""
     return latest_incident
 
+
 @app.post("/api/webhook")
 async def handle_github_webhook(request: Request):
     global latest_incident
     payload = await request.json()
-    
+
     if "workflow_run" in payload:
         wf = payload["workflow_run"]
         run_status = wf.get("status")
         conclusion = wf.get("conclusion")
-        
+
         print(f"GitHub Action Status: {run_status} | Conclusion: {conclusion}")
-        
+
         repo_name = payload.get("repository", {}).get("full_name", "Paramesh388/Self-healing-pipeline")
         branch_name = wf.get("head_branch", "main")
         commit_msg = wf.get("head_commit", {}).get("message", "Update pipeline")
@@ -122,38 +108,42 @@ async def handle_github_webhook(request: Request):
         # 1. IF THE BUILD FAILED -> TURN DASHBOARD RED & CALL GROQ AI
         if conclusion == "failure":
             print("Build failed! Triggering Groq AI for root cause analysis...")
-            
+
             error_context = (
                 f"FATAL: GitHub Actions Workflow '{workflow_name}' (Run #{run_number}) failed.\n"
                 f"Repository: {repo_name} | Branch: {branch_name}\n"
                 f"Triggering Commit: '{commit_msg}'\n"
                 f"ERROR: Process completed with exit code 1 during build step execution."
             )
-            
-            diagnosis = diagnose_error(error_context)
-            
+
+            diagnosis = run_ai_diagnosis(error_context)
+
             latest_incident = {
                 "status": "failure",
                 "repo": repo_name,
                 "branch": branch_name,
                 "commit_msg": commit_msg,
+                "workflow_name": workflow_name,
+                "run_number": run_number,
                 "error_log": error_context,
                 "diagnosis": diagnosis,
-                "timestamp": updated_at
+                "timestamp": updated_at,
             }
 
         # 2. IF THE BUILD SUCCEEDED -> TURN DASHBOARD GREEN (HEALED!)
         elif conclusion == "success":
             print("Build succeeded! Pipeline is healed and passing.")
-            
+
             latest_incident = {
                 "status": "healed",
                 "repo": repo_name,
                 "branch": branch_name,
                 "commit_msg": commit_msg,
+                "workflow_name": workflow_name,
+                "run_number": run_number,
                 "error_log": f"SUCCESS: Workflow '{workflow_name}' (Run #{run_number}) completed with exit code 0.",
                 "diagnosis": "No errors detected. The previous failure has been resolved and all CI checks passed!",
-                "timestamp": updated_at
+                "timestamp": updated_at,
             }
-            
+
     return {"status": "success", "message": "Webhook processed"}

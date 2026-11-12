@@ -1,13 +1,14 @@
 import os
 import re
 import sys
-import os
 from dotenv import load_dotenv
 
 load_dotenv()
 from dataclasses import dataclass, field
 from typing import List
 from openai import OpenAI, NotFoundError
+
+LOG_ERROR_PATTERN = re.compile(r"(ERROR|FATAL|FAIL|Exception)")
 
 # Configure UTF-8 output encoding for Windows terminals to support rich characters
 if hasattr(sys.stdout, "reconfigure"):
@@ -29,6 +30,19 @@ class AppConfig:
 config = AppConfig()
 
 
+def clean_log_text(raw_text: str) -> str:
+    """
+    Filters raw log text to retain only lines containing
+    'ERROR', 'FATAL', 'FAIL', or 'Exception'.
+    """
+    matching_lines = [
+        line.rstrip("\r")
+        for line in raw_text.splitlines()
+        if LOG_ERROR_PATTERN.search(line)
+    ]
+    return "\n".join(matching_lines)
+
+
 def clean_log(log_path: str = None) -> str:
     """
     Reads the given log file and filters out all lines EXCEPT those
@@ -38,15 +52,8 @@ def clean_log(log_path: str = None) -> str:
     if not os.path.exists(path):
         raise FileNotFoundError(f"Log file not found at: {path}")
 
-    pattern = re.compile(r"(ERROR|FATAL|FAIL|Exception)")
-    matching_lines = []
-
     with open(path, "r", encoding="utf-8") as file:
-        for line in file:
-            if pattern.search(line):
-                matching_lines.append(line.rstrip("\r\n"))
-
-    return "\n".join(matching_lines)
+        return clean_log_text(file.read())
 
 
 def diagnose_error(cleaned_logs: str, cfg: AppConfig = config) -> str:
@@ -54,14 +61,15 @@ def diagnose_error(cleaned_logs: str, cfg: AppConfig = config) -> str:
     Sends cleaned log lines to Groq using the OpenAI SDK and returns the diagnosis.
     Tries cfg.model_name and falls back to cfg.fallback_models if the requested model is not found.
     """
-    if not cfg.api_key or cfg.api_key.startswith("YOUR_"):
+    api_key = cfg.api_key or os.getenv("GROQ_API_KEY")
+    if not api_key or api_key.startswith("YOUR_"):
         raise ValueError(
-            "Groq API key is missing. Please set config.api_key in diagnose.py "
-            "or set the GROQ_API_KEY environment variable."
+            "Groq API key is missing. Please set GROQ_API_KEY in your .env file "
+            "or environment variables."
         )
 
     client = OpenAI(
-        api_key=cfg.api_key,
+        api_key=api_key,
         base_url=cfg.base_url
     )
 

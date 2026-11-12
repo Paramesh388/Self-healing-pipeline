@@ -3,199 +3,1358 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Self-Healing CI/CD Pipeline Dashboard</title>
+    <title>Automated Root Cause Analysis &amp; Remediation for CI/CD Build Failures</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg-base: #060913;
+            --bg-surface: rgba(15, 23, 42, 0.78);
+            --bg-surface-solid: #0f172a;
+            --bg-elevated: rgba(30, 41, 59, 0.55);
+            --bg-terminal: #080d1a;
+            --border-subtle: rgba(148, 163, 184, 0.14);
+            --border-strong: rgba(148, 163, 184, 0.25);
+
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-muted: #94a3b8;
+
+            --accent-sky: #38bdf8;
+            --accent-indigo: #818cf8;
+
+            --state-waiting-bg: rgba(14, 165, 233, 0.12);
+            --state-waiting-border: rgba(56, 189, 248, 0.35);
+            --state-waiting-text: #7dd3fc;
+
+            --state-fail-bg: rgba(239, 68, 68, 0.12);
+            --state-fail-border: rgba(239, 68, 68, 0.42);
+            --state-fail-text: #fca5a5;
+            --state-fail-solid: #ef4444;
+
+            --state-heal-bg: rgba(16, 185, 129, 0.12);
+            --state-heal-border: rgba(16, 185, 129, 0.42);
+            --state-heal-text: #6ee7b7;
+            --state-heal-solid: #10b981;
+
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            --transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #0f172a;
-            color: #f8fafc;
             margin: 0;
-            padding: 25px;
+            min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            position: relative;
         }
-        .container {
-            max-width: 950px;
+
+        /* Ambient background glow & subtle technical grid */
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            background-image:
+                radial-gradient(circle at 18% 12%, rgba(56, 189, 248, 0.10), transparent 42%),
+                radial-gradient(circle at 82% 18%, rgba(99, 102, 241, 0.10), transparent 40%),
+                linear-gradient(to right, rgba(148, 163, 184, 0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(148, 163, 184, 0.03) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+            pointer-events: none;
+            z-index: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        body.theme-failure::before {
+            background-image:
+                radial-gradient(circle at 20% 10%, rgba(239, 68, 68, 0.16), transparent 46%),
+                radial-gradient(circle at 82% 20%, rgba(249, 115, 22, 0.08), transparent 40%),
+                linear-gradient(to right, rgba(148, 163, 184, 0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(148, 163, 184, 0.03) 1px, transparent 1px);
+        }
+
+        body.theme-healed::before {
+            background-image:
+                radial-gradient(circle at 20% 10%, rgba(16, 185, 129, 0.16), transparent 46%),
+                radial-gradient(circle at 82% 20%, rgba(56, 189, 248, 0.09), transparent 40%),
+                linear-gradient(to right, rgba(148, 163, 184, 0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(148, 163, 184, 0.03) 1px, transparent 1px);
+        }
+
+        .app-shell {
+            position: relative;
+            z-index: 1;
+            max-width: 1120px;
             margin: 0 auto;
+            padding: 28px 22px 48px;
         }
-        header {
+
+        /* Header */
+        .topbar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+            padding-bottom: 22px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .title-group {
+            max-width: 720px;
+        }
+
+        .eyebrow-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .eyebrow-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11.5px;
+            font-weight: 600;
+            letter-spacing: 0.03em;
+            text-transform: uppercase;
+            background: rgba(56, 189, 248, 0.10);
+            color: var(--accent-sky);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+        }
+
+        .repo-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-secondary);
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid var(--border-subtle);
+        }
+
+        h1.research-title {
+            margin: 0 0 6px;
+            font-size: clamp(1.35rem, 2.5vw, 1.82rem);
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            line-height: 1.25;
+            background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            margin: 0;
+            font-size: 0.95rem;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        /* Live Status & Telemetry Controls */
+        .status-cluster {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 16px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 600;
+            border: 1px solid var(--state-waiting-border);
+            background: var(--state-waiting-bg);
+            color: var(--state-waiting-text);
+            backdrop-filter: blur(10px);
+            transition: var(--transition);
+            box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+        }
+
+        .status-badge.is-failure {
+            background: var(--state-fail-bg);
+            border-color: var(--state-fail-border);
+            color: var(--state-fail-text);
+            box-shadow: 0 0 24px rgba(239, 68, 68, 0.18);
+        }
+
+        .status-badge.is-healed {
+            background: var(--state-heal-bg);
+            border-color: var(--state-heal-border);
+            color: var(--state-heal-text);
+            box-shadow: 0 0 24px rgba(16, 185, 129, 0.18);
+        }
+
+        .pulse-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background-color: currentColor;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .pulse-dot::after {
+            content: "";
+            position: absolute;
+            inset: -4px;
+            border-radius: 50%;
+            border: 2px solid currentColor;
+            opacity: 0;
+            animation: pulseRing 2s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+        }
+
+        @keyframes pulseRing {
+            0% { transform: scale(0.75); opacity: 0.8; }
+            70%, 100% { transform: scale(1.9); opacity: 0; }
+        }
+
+        .poll-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .conn-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            display: inline-block;
+            background: #64748b;
+        }
+
+        .conn-dot.online { background: #10b981; }
+        .conn-dot.offline { background: #ef4444; }
+
+        /* Tabs */
+        .nav-tabs {
+            display: inline-flex;
+            gap: 6px;
+            padding: 5px;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            margin-bottom: 22px;
+            backdrop-filter: blur(10px);
+        }
+
+        .tab-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            padding: 9px 16px;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 13.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(148, 163, 184, 0.08);
+        }
+
+        .tab-btn.active {
+            color: var(--text-primary);
+            background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(99, 102, 241, 0.18));
+            border: 1px solid rgba(56, 189, 248, 0.30);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .tab-panel {
+            display: none;
+            animation: fadeSlideIn 0.28s ease-out;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Glass Cards */
+        .glass-card {
+            background: var(--bg-surface);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-lg);
+            padding: 22px;
+            backdrop-filter: blur(14px);
+            box-shadow: 0 12px 32px rgba(2, 6, 23, 0.45);
+            transition: var(--transition);
+        }
+
+        .glass-card.failure-card {
+            border-color: var(--state-fail-border);
+            box-shadow: 0 14px 36px rgba(127, 29, 29, 0.25);
+        }
+
+        .glass-card.healed-card {
+            border-color: var(--state-heal-border);
+            box-shadow: 0 14px 36px rgba(6, 95, 70, 0.25);
+        }
+
+        /* Telemetry Summary Strip */
+        .telemetry-strip {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .kpi-card {
+            background: rgba(15, 23, 42, 0.72);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            transition: var(--transition);
+        }
+
+        .kpi-label {
+            font-size: 11.5px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .kpi-value {
+            font-size: 14.5px;
+            font-weight: 600;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .kpi-value.mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+        }
+
+        /* Waiting State */
+        .waiting-container {
+            text-align: center;
+            padding: 46px 24px;
+        }
+
+        .radar-icon {
+            width: 62px;
+            height: 62px;
+            margin: 0 auto 18px;
+            border-radius: 50%;
+            display: grid;
+            place-items: center;
+            background: rgba(56, 189, 248, 0.10);
+            border: 1px solid rgba(56, 189, 248, 0.30);
+            color: var(--accent-sky);
+            position: relative;
+        }
+
+        .radar-icon::after {
+            content: "";
+            position: absolute;
+            inset: -8px;
+            border-radius: 50%;
+            border: 1px dashed rgba(56, 189, 248, 0.35);
+            animation: spinSlow 14s linear infinite;
+        }
+
+        @keyframes spinSlow {
+            to { transform: rotate(360deg); }
+        }
+
+        .waiting-title {
+            margin: 0 0 8px;
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .waiting-desc {
+            max-width: 560px;
+            margin: 0 auto 24px;
+            font-size: 0.92rem;
+            color: var(--text-muted);
+        }
+
+        .pipeline-flow {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .flow-step {
+            padding: 7px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 500;
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+        }
+
+        .flow-arrow {
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        /* State Banner */
+        .state-banner {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+            padding: 16px 18px;
+            border-radius: var(--radius-md);
+            margin-bottom: 18px;
+            border: 1px solid var(--border-subtle);
+            transition: var(--transition);
+        }
+
+        .state-banner.failure {
+            background: linear-gradient(90deg, rgba(239, 68, 68, 0.16), rgba(15, 23, 42, 0.6));
+            border-color: var(--state-fail-border);
+        }
+
+        .state-banner.healed {
+            background: linear-gradient(90deg, rgba(16, 185, 129, 0.16), rgba(15, 23, 42, 0.6));
+            border-color: var(--state-heal-border);
+        }
+
+        .banner-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .banner-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            display: grid;
+            place-items: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .state-banner.failure .banner-icon {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+        }
+
+        .state-banner.healed .banner-icon {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+        }
+
+        .banner-title {
+            margin: 0;
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .banner-sub {
+            margin: 2px 0 0;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .commit-chip {
+            padding: 6px 12px;
+            border-radius: 8px;
+            background: rgba(2, 6, 23, 0.55);
+            border: 1px solid var(--border-subtle);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-secondary);
+            max-width: 340px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Observability Panels */
+        .panels-stack {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 18px;
+        }
+
+        .sub-panel {
+            background: var(--bg-terminal);
+            border: 1px solid var(--border-subtle);
+            border-radius: var(--radius-md);
+            overflow: hidden;
+        }
+
+        .sub-panel-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #334155;
-            padding-bottom: 15px;
-            margin-bottom: 25px;
+            padding: 11px 16px;
+            background: rgba(15, 23, 42, 0.9);
+            border-bottom: 1px solid var(--border-subtle);
         }
-        h1 { margin: 0; font-size: 24px; color: #38bdf8; }
-        .badge-live {
-            background-color: #065f46;
-            color: #34d399;
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-size: 13px;
+
+        .sub-panel-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12.5px;
             font-weight: 600;
-            border: 1px solid #059669;
+            letter-spacing: 0.02em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
         }
-        .card {
-            background-color: #1e293b;
-            border: 1px solid #334155;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 25px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+
+        .tag-badge {
+            font-size: 11px;
+            font-family: 'JetBrains Mono', monospace;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: rgba(56, 189, 248, 0.12);
+            color: var(--accent-sky);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            text-transform: none;
         }
-        .card h2 {
-            margin-top: 0;
-            font-size: 18px;
-            color: #e2e8f0;
-            border-bottom: 1px solid #334155;
-            padding-bottom: 10px;
+
+        .tag-badge.error {
+            background: rgba(239, 68, 68, 0.14);
+            color: #fca5a5;
+            border-color: rgba(239, 68, 68, 0.3);
         }
-        .waiting-box {
-            text-align: center;
-            padding: 30px;
-            color: #94a3b8;
-            font-style: italic;
+
+        .tag-badge.success {
+            background: rgba(16, 185, 129, 0.14);
+            color: #6ee7b7;
+            border-color: rgba(16, 185, 129, 0.3);
         }
-        .incident-box {
-            display: none;
-            border-left: 4px solid #ef4444;
-            padding-left: 15px;
-        }
-        .meta-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
-            background: #0f172a;
-            padding: 12px;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            font-size: 14px;
-        }
-        .meta-item span { color: #94a3b8; display: block; font-size: 12px; }
-        .meta-item strong { color: #f8fafc; }
-        pre {
-            background-color: #0f172a;
-            padding: 15px;
-            border-radius: 8px;
-            overflow-x: auto;
-            white-space: pre-wrap;
-            color: #cbd5e1;
-            border: 1px solid #334155;
-            font-size: 13.5px;
-            line-height: 1.5;
-        }
-        .error-pre { color: #f87171; border-color: #7f1d1d; }
-        .ai-pre { color: #38bdf8; border-color: #0369a1; }
-        textarea {
-            width: 100%;
-            height: 110px;
-            background-color: #0f172a;
-            color: #f8fafc;
-            border: 1px solid #334155;
-            border-radius: 8px;
-            padding: 12px;
-            font-family: monospace;
-            box-sizing: border-box;
-            margin-bottom: 12px;
-        }
-        button {
-            background-color: #2563eb;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
+
+        .copy-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(30, 41, 59, 0.85);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-strong);
+            padding: 5px 11px;
+            border-radius: 7px;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 500;
             cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .copy-btn:hover {
+            color: var(--text-primary);
+            border-color: var(--accent-sky);
+            background: rgba(56, 189, 248, 0.12);
+        }
+
+        .copy-btn.copied {
+            color: #6ee7b7;
+            border-color: rgba(16, 185, 129, 0.5);
+            background: rgba(16, 185, 129, 0.14);
+        }
+
+        .log-pre {
+            margin: 0;
+            padding: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #fca5a5;
+            overflow-x: auto;
+        }
+
+        .log-pre.healed {
+            color: #6ee7b7;
+        }
+
+        /* Formatted Markdown RCA Body */
+        .rca-body {
+            padding: 18px 20px;
+            font-size: 14.5px;
+            line-height: 1.7;
+            color: var(--text-secondary);
+        }
+
+        .rca-body h1,
+        .rca-body h2,
+        .rca-body h3,
+        .rca-body h4 {
+            margin: 16px 0 8px;
+            color: var(--text-primary);
+            font-weight: 600;
+            line-height: 1.35;
+        }
+
+        .rca-body h1:first-child,
+        .rca-body h2:first-child,
+        .rca-body h3:first-child,
+        .rca-body h4:first-child,
+        .rca-body p:first-child {
+            margin-top: 0;
+        }
+
+        .rca-body h2 { font-size: 1.08rem; color: #7dd3fc; }
+        .rca-body h3 { font-size: 1rem; color: #bae6fd; }
+        .rca-body h4 { font-size: 0.94rem; color: #e2e8f0; }
+
+        .rca-body p {
+            margin: 0 0 12px;
+        }
+
+        .rca-body p:last-child {
+            margin-bottom: 0;
+        }
+
+        .rca-body strong {
+            color: #ffffff;
             font-weight: 600;
         }
-        button:hover { background-color: #1d4ed8; }
+
+        .rca-body ul,
+        .rca-body ol {
+            margin: 8px 0 14px;
+            padding-left: 22px;
+        }
+
+        .rca-body li {
+            margin-bottom: 6px;
+        }
+
+        .rca-body code {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.86em;
+            padding: 2px 6px;
+            border-radius: 5px;
+            background: rgba(56, 189, 248, 0.12);
+            color: #7dd3fc;
+            border: 1px solid rgba(56, 189, 248, 0.2);
+        }
+
+        .rca-body pre.md-code-block {
+            margin: 12px 0;
+            padding: 14px 16px;
+            border-radius: 10px;
+            background: #040711;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            overflow-x: auto;
+        }
+
+        .rca-body pre.md-code-block code {
+            background: transparent;
+            border: none;
+            padding: 0;
+            color: #e2e8f0;
+            font-size: 12.8px;
+            line-height: 1.55;
+        }
+
+        /* Manual Analyzer Styles */
+        .analyzer-header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .analyzer-header h2 {
+            margin: 0;
+            font-size: 1.12rem;
+            font-weight: 600;
+        }
+
+        .preset-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .preset-label {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .preset-btn {
+            background: rgba(30, 41, 59, 0.75);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-subtle);
+            padding: 5px 10px;
+            border-radius: 7px;
+            font-size: 12px;
+            font-family: inherit;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .preset-btn:hover {
+            border-color: var(--accent-sky);
+            color: var(--text-primary);
+        }
+
+        textarea#rawLogInput {
+            width: 100%;
+            min-height: 155px;
+            background: var(--bg-terminal);
+            color: #e2e8f0;
+            border: 1px solid var(--border-strong);
+            border-radius: var(--radius-md);
+            padding: 14px 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.55;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        textarea#rawLogInput:focus {
+            border-color: var(--accent-sky);
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+        }
+
+        .analyzer-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-top: 14px;
+        }
+
+        .helper-hint {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .helper-hint code {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent-sky);
+        }
+
+        .primary-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 13.5px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 6px 18px rgba(37, 99, 235, 0.28);
+        }
+
+        .primary-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 22px rgba(37, 99, 235, 0.4);
+        }
+
+        .primary-btn:disabled {
+            opacity: 0.72;
+            cursor: not-allowed;
+        }
+
+        .spinner {
+            width: 15px;
+            height: 15px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spinFast 0.75s linear infinite;
+            display: none;
+        }
+
+        .primary-btn.loading .spinner {
+            display: inline-block;
+        }
+
+        @keyframes spinFast {
+            to { transform: rotate(360deg); }
+        }
+
+        .error-alert {
+            display: none;
+            margin-top: 14px;
+            padding: 11px 14px;
+            border-radius: 9px;
+            background: rgba(239, 68, 68, 0.14);
+            border: 1px solid rgba(239, 68, 68, 0.38);
+            color: #fca5a5;
+            font-size: 13px;
+        }
+
+        #manualResult {
+            display: none;
+            margin-top: 22px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Responsive */
+        @media (max-width: 860px) {
+            .telemetry-strip {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .status-cluster {
+                align-items: flex-start;
+            }
+        }
+
+        @media (max-width: 540px) {
+            .telemetry-strip {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div>
-                <h1>⚡ Towards Self-Healing CI/CD Pipelines</h1>
-                <small style="color: #94a3b8;">Automated GitHub Actions Webhook & Groq Llama-3.3 Root Cause Analyzer</small>
+    <div class="app-shell">
+        <header class="topbar">
+            <div class="title-group">
+                <div class="eyebrow-row">
+                    <span class="eyebrow-pill">MCA Research Prototype</span>
+                    <span class="repo-pill">Paramesh388/Self-healing-pipeline</span>
+                </div>
+                <h1 class="research-title">Automated Root Cause Analysis and Remediation for CI/CD Build Failures</h1>
+                <p class="subtitle">AI-Powered CI/CD Pipeline Prototype &middot; Regex Log Sanitization + Groq Llama-3.3-70B RCA</p>
             </div>
-            <div class="badge-live" id="statusBadge">● Listening for GitHub Webhooks...</div>
+
+            <div class="status-cluster">
+                <div id="statusBadge" class="status-badge">
+                    <span class="pulse-dot"></span>
+                    <span id="statusBadgeText">Listening for GitHub Webhooks...</span>
+                </div>
+                <div class="poll-meta">
+                    <span id="connDot" class="conn-dot"></span>
+                    <span id="connLabel">127.0.0.1:8000</span>
+                    <span>&middot;</span>
+                    <span id="lastPollTime">Polling every 3s</span>
+                </div>
+            </div>
         </header>
 
-        <!-- SECTION 1: LIVE GITHUB WEBHOOK MONITOR -->
-        <div class="card">
-            <h2>🔴 Live GitHub CI/CD Failure Feed (Automated Phase 4)</h2>
-            <div id="waitingState" class="waiting-box">
-                Waiting for GitHub Action events... Push a failing commit or trigger a webhook delivery to see instant AI root cause analysis.
-            </div>
-            <div id="incidentState" class="incident-box">
-                <div class="meta-grid">
-                    <div class="meta-item"><span>Repository</span><strong id="repoName">-</strong></div>
-                    <div class="meta-item"><span>Branch</span><strong id="branchName">-</strong></div>
-                    <div class="meta-item"><span>Commit Message</span><strong id="commitMsg">-</strong></div>
-                </div>
-                <h4 style="margin-bottom: 6px; color: #f87171;">Captured Pipeline Failure Log:</h4>
-                <pre id="webhookLog" class="error-pre"></pre>
-                <h4 style="margin-bottom: 6px; color: #38bdf8;">🤖 Groq AI Automated Diagnosis & Fix:</h4>
-                <pre id="webhookDiagnosis" class="ai-pre"></pre>
-            </div>
-        </div>
+        <nav class="nav-tabs" role="tablist" aria-label="Dashboard Sections">
+            <button id="tabLiveBtn" class="tab-btn active" role="tab" aria-selected="true" onclick="switchTab('live')">
+                <span>Live Pipeline Monitor</span>
+            </button>
+            <button id="tabManualBtn" class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('manual')">
+                <span>Manual Build Log Analyzer</span>
+            </button>
+        </nav>
 
-        <!-- SECTION 2: MANUAL LOG ANALYZER -->
-        <div class="card">
-            <h2>🛠️ Manual Build Log Analyzer (On-Demand Test)</h2>
-            <textarea id="rawLogInput" placeholder="Paste raw CI/CD build logs here (must include ERROR, FATAL, FAIL, or Exception)...">INFO: Starting build process...
-ERROR: ModuleNotFoundError: No module named 'fastapi'
-FATAL: Build process exited with code 1</textarea>
-            <button onclick="runManualDiagnosis()" id="analyzeBtn">Analyze Log with Groq AI</button>
-            <div id="manualResult" style="display:none; margin-top: 15px;">
-                <h4 style="margin-bottom: 6px; color: #f87171;">Sanitized Error Lines:</h4>
-                <pre id="manualCleaned" class="error-pre"></pre>
-                <h4 style="margin-bottom: 6px; color: #38bdf8;">🤖 Groq AI Diagnosis:</h4>
-                <pre id="manualDiagnosis" class="ai-pre"></pre>
+        <!-- TAB 1: LIVE WEBHOOK OBSERVABILITY -->
+        <section id="panelLive" class="tab-panel active" role="tabpanel">
+            <div class="telemetry-strip">
+                <div class="kpi-card">
+                    <div class="kpi-label">Pipeline State</div>
+                    <div id="kpiState" class="kpi-value">Listening / Waiting</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Repository</div>
+                    <div id="kpiRepo" class="kpi-value mono">Paramesh388/Self-healing-pipeline</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Branch / Run</div>
+                    <div id="kpiBranchRun" class="kpi-value mono">main &middot; &mdash;</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Last Event</div>
+                    <div id="kpiTimestamp" class="kpi-value mono">Awaiting webhook</div>
+                </div>
             </div>
-        </div>
+
+            <div id="liveMainCard" class="glass-card">
+                <!-- WAITING STATE -->
+                <div id="waitingState" class="waiting-container">
+                    <div class="radar-icon" aria-hidden="true">
+                        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="2"></circle>
+                            <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
+                        </svg>
+                    </div>
+                    <h2 class="waiting-title">Listening for GitHub Actions Events</h2>
+                    <p class="waiting-desc">
+                        Polling <code>http://127.0.0.1:8000/api/latest-webhook</code> every 3 seconds. Push a commit to trigger GitHub Actions and observe automated failure detection, Groq AI RCA, and recovery confirmation.
+                    </p>
+                    <div class="pipeline-flow">
+                        <span class="flow-step">1. Git Push</span>
+                        <span class="flow-arrow">&rarr;</span>
+                        <span class="flow-step">2. GitHub Actions CI</span>
+                        <span class="flow-arrow">&rarr;</span>
+                        <span class="flow-step">3. Webhook + Regex Filter</span>
+                        <span class="flow-arrow">&rarr;</span>
+                        <span class="flow-step">4. Groq AI RCA / Healing</span>
+                    </div>
+                </div>
+
+                <!-- FAILURE / HEALED STATE -->
+                <div id="incidentState" class="hidden">
+                    <div id="stateBanner" class="state-banner failure">
+                        <div class="banner-left">
+                            <div id="bannerIcon" class="banner-icon">!</div>
+                            <div>
+                                <h2 id="bannerTitle" class="banner-title">Build Failure Detected</h2>
+                                <p id="bannerSub" class="banner-sub">Automated regex log sanitization and Groq AI root cause analysis completed.</p>
+                            </div>
+                        </div>
+                        <div id="commitMsgChip" class="commit-chip" title="Triggering commit message">Commit: -</div>
+                    </div>
+
+                    <div class="panels-stack">
+                        <div class="sub-panel">
+                            <div class="sub-panel-header">
+                                <div class="sub-panel-title">
+                                    <span>Sanitized Build Telemetry</span>
+                                    <span id="logPanelBadge" class="tag-badge error">ERROR | FATAL | FAIL</span>
+                                </div>
+                                <button id="copyWebhookLogBtn" class="copy-btn" onclick="copyTextFromState('webhookLog', 'copyWebhookLogBtn')">
+                                    Copy Log
+                                </button>
+                            </div>
+                            <pre id="webhookLog" class="log-pre"></pre>
+                        </div>
+
+                        <div class="sub-panel">
+                            <div class="sub-panel-header">
+                                <div class="sub-panel-title">
+                                    <span>Groq AI Root Cause Analysis &amp; Remediation</span>
+                                    <span class="tag-badge">llama-3.3-70b-versatile</span>
+                                </div>
+                                <button id="copyWebhookFixBtn" class="copy-btn" onclick="copyTextFromState('webhookDiagnosis', 'copyWebhookFixBtn')">
+                                    Copy Fix
+                                </button>
+                            </div>
+                            <div id="webhookDiagnosis" class="rca-body"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: MANUAL BUILD LOG ANALYZER -->
+        <section id="panelManual" class="tab-panel" role="tabpanel">
+            <div class="glass-card">
+                <div class="analyzer-header">
+                    <h2>Manual Build Log Analyzer (On-Demand Evaluation)</h2>
+                    <div class="preset-row">
+                        <span class="preset-label">Sample Logs:</span>
+                        <button type="button" class="preset-btn" onclick="loadSampleLog('syntax')">Python SyntaxError</button>
+                        <button type="button" class="preset-btn" onclick="loadSampleLog('module')">Missing Dependency</button>
+                        <button type="button" class="preset-btn" onclick="loadSampleLog('ts')">TypeScript Compile</button>
+                    </div>
+                </div>
+
+                <textarea id="rawLogInput" placeholder="Paste raw CI/CD build logs here (lines matching ERROR, FATAL, FAIL, or Exception will be extracted)...">INFO: Starting build process...
+INFO: Checking Python syntax with py_compile...
+ERROR:   File "main.py", line 42
+SyntaxError: expected ':'
+Exception: py_compile verification failed
+FATAL: Build process exited with code 1</textarea>
+
+                <div class="analyzer-actions">
+                    <span class="helper-hint">Regex filter extracts lines matching <code>ERROR|FATAL|FAIL|Exception</code> before calling Groq AI.</span>
+                    <button id="analyzeBtn" class="primary-btn" onclick="runManualDiagnosis()">
+                        <span class="spinner" aria-hidden="true"></span>
+                        <span id="analyzeBtnText">Analyze Log with Groq AI</span>
+                    </button>
+                </div>
+
+                <div id="manualErrorAlert" class="error-alert"></div>
+
+                <div id="manualResult" class="panels-stack">
+                    <div class="sub-panel">
+                        <div class="sub-panel-header">
+                            <div class="sub-panel-title">
+                                <span>Sanitized Error Lines</span>
+                                <span class="tag-badge error">Regex Filtered</span>
+                            </div>
+                        </div>
+                        <pre id="manualCleaned" class="log-pre"></pre>
+                    </div>
+
+                    <div class="sub-panel">
+                        <div class="sub-panel-header">
+                            <div class="sub-panel-title">
+                                <span>Groq AI Root Cause Analysis &amp; Fix</span>
+                                <span class="tag-badge">llama-3.3-70b-versatile</span>
+                            </div>
+                            <button id="copyManualFixBtn" class="copy-btn" onclick="copyTextFromState('manualDiagnosis', 'copyManualFixBtn')">
+                                Copy Fix
+                            </button>
+                        </div>
+                        <div id="manualDiagnosis" class="rca-body"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
     </div>
 
     <script>
-        // Poll the FastAPI backend every 3 seconds for new GitHub Webhook failures
+        const API_BASE = "http://127.0.0.1:8000";
+        const rawTextStore = {
+            webhookLog: "",
+            webhookDiagnosis: "",
+            manualDiagnosis: ""
+        };
+
+        const SAMPLE_LOGS = {
+            syntax: `INFO: Starting CI Pipeline...\nINFO: Running python -m py_compile main.py diagnose.py\nERROR: Sorry: IndentationError: expected an indented block after function definition on line 18 (main.py, line 19)\nFAIL: Step 'Verify Python Syntax' failed.\nFATAL: Process completed with exit code 1.`,
+            module: `INFO: Starting build process...\nINFO: Installing runtime dependencies...\nERROR: ModuleNotFoundError: No module named 'fastapi'\nException: Unable to start ASGI application server.\nFATAL: Build process exited with code 1`,
+            ts: `[INFO] Step 4/4 - Executing production bundle npm run build...\nERROR: src/controllers/authController.ts(42,15): error TS1005: ',' expected.\nERROR: src/controllers/authController.ts(43,1): error TS1128: Declaration or statement expected.\nFAIL: Build target 'auth-service' failed during TypeScript compilation.\nException: Uncaught CompilationError encountered during build lifecycle.\nFATAL: Process exited with status code 1.`
+        };
+
+        function switchTab(tabName) {
+            const isLive = tabName === "live";
+            document.getElementById("tabLiveBtn").classList.toggle("active", isLive);
+            document.getElementById("tabManualBtn").classList.toggle("active", !isLive);
+            document.getElementById("tabLiveBtn").setAttribute("aria-selected", String(isLive));
+            document.getElementById("tabManualBtn").setAttribute("aria-selected", String(!isLive));
+
+            document.getElementById("panelLive").classList.toggle("active", isLive);
+            document.getElementById("panelManual").classList.toggle("active", !isLive);
+        }
+
+        function loadSampleLog(key) {
+            if (SAMPLE_LOGS[key]) {
+                document.getElementById("rawLogInput").value = SAMPLE_LOGS[key];
+            }
+        }
+
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#39;");
+        }
+
+        function formatInlineMarkdown(text) {
+            let safe = escapeHtml(text);
+            safe = safe.replace(/`([^`]+)`/g, "<code>$1</code>");
+            safe = safe.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+            safe = safe.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+            return safe;
+        }
+
+        function renderMarkdown(mdText) {
+            if (!mdText) return "<p>No output available.</p>";
+
+            const lines = mdText.replace(/\r\n/g, "\n").split("\n");
+            let html = "";
+            let inCodeBlock = false;
+            let codeLines = [];
+            let listType = null; // "ul" or "ol"
+
+            function closeList() {
+                if (listType) {
+                    html += `</${listType}>`;
+                    listType = null;
+                }
+            }
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const trimmed = line.trim();
+
+                if (trimmed.startsWith("```")) {
+                    closeList();
+                    if (!inCodeBlock) {
+                        inCodeBlock = true;
+                        codeLines = [];
+                    } else {
+                        html += `<pre class="md-code-block"><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`;
+                        inCodeBlock = false;
+                    }
+                    continue;
+                }
+
+                if (inCodeBlock) {
+                    codeLines.push(line);
+                    continue;
+                }
+
+                if (!trimmed) {
+                    closeList();
+                    continue;
+                }
+
+                const headingMatch = trimmed.match(/^(#{1,4})\s+(.*)$/);
+                if (headingMatch) {
+                    closeList();
+                    const level = Math.min(4, Math.max(2, headingMatch[1].length));
+                    html += `<h${level}>${formatInlineMarkdown(headingMatch[2])}</h${level}>`;
+                    continue;
+                }
+
+                const olMatch = trimmed.match(/^\d+\.\s+(.*)$/);
+                if (olMatch) {
+                    if (listType !== "ol") {
+                        closeList();
+                        listType = "ol";
+                        html += "<ol>";
+                    }
+                    html += `<li>${formatInlineMarkdown(olMatch[1])}</li>`;
+                    continue;
+                }
+
+                const ulMatch = trimmed.match(/^[-*]\s+(.*)$/);
+                if (ulMatch) {
+                    if (listType !== "ul") {
+                        closeList();
+                        listType = "ul";
+                        html += "<ul>";
+                    }
+                    html += `<li>${formatInlineMarkdown(ulMatch[1])}</li>`;
+                    continue;
+                }
+
+                closeList();
+                html += `<p>${formatInlineMarkdown(trimmed)}</p>`;
+            }
+
+            if (inCodeBlock) {
+                html += `<pre class="md-code-block"><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`;
+            }
+            closeList();
+
+            return html || `<p>${formatInlineMarkdown(mdText)}</p>`;
+        }
+
+        async function copyTextFromState(key, buttonId) {
+            const text = rawTextStore[key];
+            if (!text) return;
+
+            const btn = document.getElementById(buttonId);
+            const originalLabel = btn.textContent;
+            try {
+                await navigator.clipboard.writeText(text);
+                btn.textContent = "Copied!";
+                btn.classList.add("copied");
+                setTimeout(() => {
+                    btn.textContent = originalLabel;
+                    btn.classList.remove("copied");
+                }, 1800);
+            } catch (err) {
+                console.error("Clipboard copy failed:", err);
+            }
+        }
+
+        function formatTimestamp(ts) {
+            if (!ts || ts === "Just now") return ts || "Just now";
+            const d = new Date(ts);
+            if (Number.isNaN(d.getTime())) return ts;
+            return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+        }
+
+        function setConnectionHealth(isOnline) {
+            const dot = document.getElementById("connDot");
+            const label = document.getElementById("connLabel");
+            const pollTime = document.getElementById("lastPollTime");
+            dot.className = `conn-dot ${isOnline ? "online" : "offline"}`;
+            label.textContent = isOnline ? "API Online (127.0.0.1:8000)" : "API Offline (127.0.0.1:8000)";
+            pollTime.textContent = `Checked ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
+        }
+
+        function applyDashboardState(data) {
+            const badge = document.getElementById("statusBadge");
+            const badgeText = document.getElementById("statusBadgeText");
+            const kpiState = document.getElementById("kpiState");
+            const kpiRepo = document.getElementById("kpiRepo");
+            const kpiBranchRun = document.getElementById("kpiBranchRun");
+            const kpiTimestamp = document.getElementById("kpiTimestamp");
+
+            const waitingState = document.getElementById("waitingState");
+            const incidentState = document.getElementById("incidentState");
+            const mainCard = document.getElementById("liveMainCard");
+            const stateBanner = document.getElementById("stateBanner");
+            const bannerIcon = document.getElementById("bannerIcon");
+            const bannerTitle = document.getElementById("bannerTitle");
+            const bannerSub = document.getElementById("bannerSub");
+            const commitChip = document.getElementById("commitMsgChip");
+            const logPre = document.getElementById("webhookLog");
+            const logPanelBadge = document.getElementById("logPanelBadge");
+            const rcaContainer = document.getElementById("webhookDiagnosis");
+
+            if (data.status !== "failure" && data.status !== "healed") {
+                document.body.classList.remove("theme-failure", "theme-healed");
+                badge.className = "status-badge";
+                badgeText.textContent = "Listening for GitHub Webhooks...";
+                kpiState.textContent = "Listening / Waiting";
+                waitingState.classList.remove("hidden");
+                incidentState.classList.add("hidden");
+                mainCard.className = "glass-card";
+                return;
+            }
+
+            waitingState.classList.add("hidden");
+            incidentState.classList.remove("hidden");
+
+            const repo = data.repo || "Paramesh388/Self-healing-pipeline";
+            const branch = data.branch || "main";
+            const runSuffix = data.run_number ? `Run #${data.run_number}` : "Latest Run";
+            const commitMsg = data.commit_msg || "Update pipeline";
+
+            kpiRepo.textContent = repo;
+            kpiBranchRun.textContent = `${branch} · ${runSuffix}`;
+            kpiTimestamp.textContent = formatTimestamp(data.timestamp);
+            commitChip.textContent = `Commit: ${commitMsg}`;
+            commitChip.title = commitMsg;
+
+            rawTextStore.webhookLog = data.error_log || "";
+            rawTextStore.webhookDiagnosis = data.diagnosis || "";
+
+            logPre.textContent = rawTextStore.webhookLog;
+            rcaContainer.innerHTML = renderMarkdown(rawTextStore.webhookDiagnosis);
+
+            if (data.status === "failure") {
+                document.body.classList.add("theme-failure");
+                document.body.classList.remove("theme-healed");
+                badge.className = "status-badge is-failure";
+                badgeText.textContent = "Build Failure Detected";
+                kpiState.textContent = "Failure Detected";
+                mainCard.className = "glass-card failure-card";
+
+                stateBanner.className = "state-banner failure";
+                bannerIcon.innerHTML = "&#9888;";
+                bannerTitle.textContent = "Build Failure Detected — Automated RCA Active";
+                bannerSub.textContent = `${data.workflow_name || "CI Pipeline"} failed on branch '${branch}'. Groq AI generated remediation steps below.`;
+
+                logPre.className = "log-pre";
+                logPanelBadge.className = "tag-badge error";
+                logPanelBadge.textContent = "ERROR | FATAL | FAIL";
+            } else {
+                document.body.classList.add("theme-healed");
+                document.body.classList.remove("theme-failure");
+                badge.className = "status-badge is-healed";
+                badgeText.textContent = "Pipeline Healed & Passing";
+                kpiState.textContent = "Healed & Passing";
+                mainCard.className = "glass-card healed-card";
+
+                stateBanner.className = "state-banner healed";
+                bannerIcon.innerHTML = "&#10003;";
+                bannerTitle.textContent = "Pipeline Healed & Passing";
+                bannerSub.textContent = `${data.workflow_name || "CI Pipeline"} recovered and passed all CI checks with exit code 0.`;
+
+                logPre.className = "log-pre healed";
+                logPanelBadge.className = "tag-badge success";
+                logPanelBadge.textContent = "EXIT CODE 0";
+            }
+        }
+
         async function checkLatestWebhook() {
             try {
-                const res = await fetch("http://localhost:8000/api/latest-webhook");
+                const res = await fetch(`${API_BASE}/api/latest-webhook`, { cache: "no-store" });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
-                
-                if (data.status === "failure" || data.status === "healed") {
-                    document.getElementById("waitingState").style.display = "none";
-                    const incidentBox = document.getElementById("incidentState");
-                    incidentBox.style.display = "block";
-                    
-                    document.getElementById("repoName").textContent = data.repo;
-                    document.getElementById("branchName").textContent = data.branch;
-                    document.getElementById("commitMsg").textContent = data.commit_msg;
-                    document.getElementById("webhookLog").textContent = data.error_log;
-                    document.getElementById("webhookDiagnosis").textContent = data.diagnosis;
-                    
-                    const badge = document.getElementById("statusBadge");
-                    const logBox = document.getElementById("webhookLog");
-
-                    if (data.status === "failure") {
-                        // Red Failure Theme
-                        incidentBox.style.borderLeftColor = "#ef4444";
-                        logBox.style.color = "#f87171";
-                        logBox.style.borderColor = "#7f1d1d";
-                        badge.textContent = "⚠️ Build Failure Detected!";
-                        badge.style.backgroundColor = "#7f1d1d";
-                        badge.style.color = "#fca5a5";
-                        badge.style.borderColor = "#ef4444";
-                    } else if (data.status === "healed") {
-                        // Green Healed Theme
-                        incidentBox.style.borderLeftColor = "#10b981";
-                        logBox.style.color = "#34d399";
-                        logBox.style.borderColor = "#059669";
-                        badge.textContent = "✅ Pipeline Healed & Passing!";
-                        badge.style.backgroundColor = "#065f46";
-                        badge.style.color = "#34d399";
-                        badge.style.borderColor = "#059669";
-                    }
-                }
+                setConnectionHealth(true);
+                applyDashboardState(data);
             } catch (err) {
+                setConnectionHealth(false);
                 console.error("Backend server offline:", err);
             }
         }
+
+        async function runManualDiagnosis() {
+            const rawLog = document.getElementById("rawLogInput").value;
+            const btn = document.getElementById("analyzeBtn");
+            const btnText = document.getElementById("analyzeBtnText");
+            const errAlert = document.getElementById("manualErrorAlert");
+            const resultBox = document.getElementById("manualResult");
+
+            errAlert.style.display = "none";
+
+            if (!rawLog.trim()) {
+                errAlert.textContent = "Please paste a CI/CD build log before running analysis.";
+                errAlert.style.display = "block";
+                return;
+            }
+
+            btn.disabled = true;
+            btn.classList.add("loading");
+            btnText.textContent = "Analyzing with Groq AI...";
+
+            try {
+                const res = await fetch(`${API_BASE}/api/diagnose`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ raw_log: rawLog })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.detail || `Server returned HTTP ${res.status}`);
+                }
+
+                document.getElementById("manualCleaned").textContent =
+                    data.sanitized_log || "No lines matched (ERROR|FATAL|FAIL|Exception).";
+                rawTextStore.manualDiagnosis = data.diagnosis || "";
+                document.getElementById("manualDiagnosis").innerHTML = renderMarkdown(rawTextStore.manualDiagnosis);
+                resultBox.style.display = "grid";
+            } catch (err) {
+                errAlert.textContent = `Analysis request failed: ${err.message}. Ensure uvicorn is running on 127.0.0.1:8000.`;
+                errAlert.style.display = "block";
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove("loading");
+                btnText.textContent = "Analyze Log with Groq AI";
+            }
+        }
+
+        // Initial fetch and 3-second polling loop
+        checkLatestWebhook();
+        setInterval(checkLatestWebhook, 3000);
+    </script>
+</body>
+</html>
