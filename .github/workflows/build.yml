@@ -1,0 +1,11 @@
+name: CI Pipeline
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run code
+        run: |
+          echo "Starting build..."
+          # Intentionally crash the build to test our self-healing AI
+          exit 1

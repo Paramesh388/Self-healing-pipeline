@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import re
 import os
 from groq import Groq
+from fastapi import Request
 
 # Initialize the FastAPI app and Groq client
 app = FastAPI(title="Self-Healing CI/CD API")
@@ -70,3 +71,21 @@ async def diagnose_build(payload: LogPayload):
         sanitized_log=cleaned,
         diagnosis=diagnosis
     )
+    
+@app.post("/api/webhook")
+async def handle_github_webhook(request: Request):
+    payload = await request.json()
+    
+    # Check if the payload contains workflow run details
+    if "workflow_run" in payload:
+        run_status = payload["workflow_run"]["status"]
+        conclusion = payload["workflow_run"]["conclusion"]
+        
+        print(f"GitHub Action Status: {run_status} | Conclusion: {conclusion}")
+        
+        # If the build failed, we trigger the self-healing AI
+        if conclusion == "failure":
+            print("Build failed! Triggering Groq AI for root cause analysis...")
+            # We will add the call to your diagnose.py here next
+            
+    return {"status": "success", "message": "Webhook processed"}
