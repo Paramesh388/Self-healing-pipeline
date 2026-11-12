@@ -160,45 +160,42 @@ FATAL: Build process exited with code 1</textarea>
             try {
                 const res = await fetch("http://localhost:8000/api/latest-webhook");
                 const data = await res.json();
-                if (data.has_incident) {
+                
+                if (data.status === "failure" || data.status === "healed") {
                     document.getElementById("waitingState").style.display = "none";
-                    document.getElementById("incidentState").style.display = "block";
+                    const incidentBox = document.getElementById("incidentState");
+                    incidentBox.style.display = "block";
+                    
                     document.getElementById("repoName").textContent = data.repo;
                     document.getElementById("branchName").textContent = data.branch;
                     document.getElementById("commitMsg").textContent = data.commit_msg;
                     document.getElementById("webhookLog").textContent = data.error_log;
                     document.getElementById("webhookDiagnosis").textContent = data.diagnosis;
-                    document.getElementById("statusBadge").textContent = "⚠️ Build Failure Detected!";
-                    document.getElementById("statusBadge").style.backgroundColor = "#7f1d1d";
-                    document.getElementById("statusBadge").style.color = "#fca5a5";
+                    
+                    const badge = document.getElementById("statusBadge");
+                    const logBox = document.getElementById("webhookLog");
+
+                    if (data.status === "failure") {
+                        // Red Failure Theme
+                        incidentBox.style.borderLeftColor = "#ef4444";
+                        logBox.style.color = "#f87171";
+                        logBox.style.borderColor = "#7f1d1d";
+                        badge.textContent = "⚠️ Build Failure Detected!";
+                        badge.style.backgroundColor = "#7f1d1d";
+                        badge.style.color = "#fca5a5";
+                        badge.style.borderColor = "#ef4444";
+                    } else if (data.status === "healed") {
+                        // Green Healed Theme
+                        incidentBox.style.borderLeftColor = "#10b981";
+                        logBox.style.color = "#34d399";
+                        logBox.style.borderColor = "#059669";
+                        badge.textContent = "✅ Pipeline Healed & Passing!";
+                        badge.style.backgroundColor = "#065f46";
+                        badge.style.color = "#34d399";
+                        badge.style.borderColor = "#059669";
+                    }
                 }
             } catch (err) {
                 console.error("Backend server offline:", err);
             }
         }
-        setInterval(checkLatestWebhook, 3000);
-        checkLatestWebhook();
-
-        // Manual log diagnosis function
-        async function runManualDiagnosis() {
-            const btn = document.getElementById("analyzeBtn");
-            const rawLog = document.getElementById("rawLogInput").value;
-            btn.textContent = "Querying Groq AI...";
-            try {
-                const res = await fetch("http://localhost:8000/api/diagnose", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ raw_log: rawLog })
-                });
-                const data = await res.json();
-                document.getElementById("manualResult").style.display = "block";
-                document.getElementById("manualCleaned").textContent = data.sanitized_log;
-                document.getElementById("manualDiagnosis").textContent = data.diagnosis;
-            } catch (err) {
-                alert("Error connecting to FastAPI server on port 8000.");
-            }
-            btn.textContent = "Analyze Log with Groq AI";
-        }
-    </script>
-</body>
-</html>

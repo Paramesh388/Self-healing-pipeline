@@ -1,11 +1,20 @@
 name: CI Pipeline
 on: [push]
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Run code
+      - name: Checkout repository code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Verify Python Syntax
         run: |
           echo "Starting build..."
-          # Intentionally crash the build to test our self-healing AI
-          exit 1
+          python -m py_compile main.py diagnose.py
+          echo "All Python files compiled cleanly with exit code 0!"

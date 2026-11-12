@@ -84,9 +84,20 @@ latest_incident = {
     "timestamp": ""
 }
 
+# Store the latest GitHub status in memory for the frontend dashboard
+latest_incident = {
+    "status": "waiting", # Can be "waiting", "failure", or "healed"
+    "repo": "",
+    "branch": "",
+    "commit_msg": "",
+    "error_log": "",
+    "diagnosis": "",
+    "timestamp": ""
+}
+
 @app.get("/api/latest-webhook")
 async def get_latest_webhook():
-    """Endpoint for index.html to fetch the latest automated GitHub diagnosis."""
+    """Endpoint for index.html to fetch the latest automated GitHub status."""
     return latest_incident
 
 @app.post("/api/webhook")
@@ -101,18 +112,17 @@ async def handle_github_webhook(request: Request):
         
         print(f"GitHub Action Status: {run_status} | Conclusion: {conclusion}")
         
+        repo_name = payload.get("repository", {}).get("full_name", "Paramesh388/Self-healing-pipeline")
+        branch_name = wf.get("head_branch", "main")
+        commit_msg = wf.get("head_commit", {}).get("message", "Update pipeline")
+        workflow_name = wf.get("name", "CI Pipeline")
+        run_number = wf.get("run_number", 1)
+        updated_at = wf.get("updated_at", "Just now")
+
+        # 1. IF THE BUILD FAILED -> TURN DASHBOARD RED & CALL GROQ AI
         if conclusion == "failure":
             print("Build failed! Triggering Groq AI for root cause analysis...")
             
-            # Extract real details from the GitHub webhook payload
-            repo_name = payload.get("repository", {}).get("full_name", "Paramesh388/Self-healing-pipeline")
-            branch_name = wf.get("head_branch", "main")
-            commit_msg = wf.get("head_commit", {}).get("message", "Update pipeline")
-            workflow_name = wf.get("name", "CI Pipeline")
-            run_number = wf.get("run_number", 1)
-            updated_at = wf.get("updated_at", "Just now")
-            
-            # Build a realistic error context from the GitHub payload
             error_context = (
                 f"FATAL: GitHub Actions Workflow '{workflow_name}' (Run #{run_number}) failed.\n"
                 f"Repository: {repo_name} | Branch: {branch_name}\n"
@@ -120,21 +130,29 @@ async def handle_github_webhook(request: Request):
                 f"ERROR: Process completed with exit code 1 during build step execution."
             )
             
-            # Get diagnosis from Groq AI
             diagnosis = diagnose_error(error_context)
             
-            print("\n--- GROQ AI DIAGNOSIS ---")
-            print(diagnosis)
-            print("-------------------------\n")
-            
-            # Save the result so index.html can display it automatically!
             latest_incident = {
-                "has_incident": True,
+                "status": "failure",
                 "repo": repo_name,
                 "branch": branch_name,
                 "commit_msg": commit_msg,
                 "error_log": error_context,
                 "diagnosis": diagnosis,
+                "timestamp": updated_at
+            }
+
+        # 2. IF THE BUILD SUCCEEDED -> TURN DASHBOARD GREEN (HEALED!)
+        elif conclusion == "success":
+            print("Build succeeded! Pipeline is healed and passing.")
+            
+            latest_incident = {
+                "status": "healed",
+                "repo": repo_name,
+                "branch": branch_name,
+                "commit_msg": commit_msg,
+                "error_log": f"SUCCESS: Workflow '{workflow_name}' (Run #{run_number}) completed with exit code 0.",
+                "diagnosis": "No errors detected. The previous failure has been resolved and all CI checks passed!",
                 "timestamp": updated_at
             }
             
