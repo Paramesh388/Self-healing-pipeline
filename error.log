@@ -1,0 +1,15 @@
+[2026-09-30T02:30:10Z] INFO: Starting CI/CD Pipeline Job #48291
+[2026-09-30T02:30:11Z] INFO: Checking out repository ref: refs/heads/main (commit 8f3a91c)
+[2026-09-30T02:30:13Z] INFO: Setting up build environment: Node.js v20.11.0, npm v10.2.4 on Linux x64
+[2026-09-30T02:30:15Z] INFO: Step 1/4 - Restoring dependency cache... SUCCESS (hit: cache-npm-v1)
+[2026-09-30T02:30:18Z] INFO: Step 2/4 - Running `npm ci`... SUCCESS (audited 642 packages in 3.12s)
+[2026-09-30T02:30:20Z] WARN: [eslint] Deprecated rule configuration detected in .eslintrc.js ('no-extra-semi')
+[2026-09-30T02:30:22Z] INFO: Step 3/4 - Code formatting & static analysis passed.
+[2026-09-30T02:30:25Z] INFO: Step 4/4 - Executing production bundle `npm run build`...
+[2026-09-30T02:30:26Z] INFO: > auth-service@1.4.0 build
+[2026-09-30T02:30:26Z] INFO: > tsc --project tsconfig.json
+[2026-09-30T02:30:28Z] ERROR: src/controllers/authController.ts(42,15): error TS1005: ',' expected.
+[2026-09-30T02:30:28Z] ERROR: src/controllers/authController.ts(43,1): error TS1128: Declaration or statement expected.
+[2026-09-30T02:30:28Z] FAIL: Build target 'auth-service' failed during TypeScript compilation.
+[2026-09-30T02:30:29Z] Exception: Uncaught CompilationError encountered during build lifecycle.
+[2026-09-30T02:30:29Z] FATAL: Process exited with status code 1. Pipeline execution aborted.

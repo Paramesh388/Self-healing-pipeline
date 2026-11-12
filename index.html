@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CI/CD AI Dashboard</title>
+    <style>body { font-family: sans-serif; padding: 20px; }</style>
+</head>
+<body>
+    <h2>Build Failure Analyzer</h2>
+    <textarea id="logInput" rows="5" cols="50" placeholder="Paste your failed log here..."></textarea><br><br>
+    <button onclick="analyzeLog()">Analyze with AI</button>
+    <h3>Diagnosis:</h3>
+    <pre id="result" style="background: #f4f4f4; padding: 10px;"></pre>
+
+    <script>
+        async function analyzeLog() {
+            const logData = document.getElementById('logInput').value;
+            document.getElementById('result').innerText = "Analyzing...";
+            
+            const response = await fetch('http://127.0.0.1:8000/api/diagnose', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ raw_log: logData })
+            });
+            
+            const data = await response.json();
+            document.getElementById('result').innerText = data.diagnosis || "Error connecting to AI.";
+        }
+    </script>
+</body>
+</html>
