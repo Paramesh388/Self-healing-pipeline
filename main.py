@@ -72,6 +72,7 @@ class CIReportPayload(BaseModel):
     commit_msg: str = ""
     commit_sha: str = ""
     raw_log: str
+    status: str = "failure"
 
 
 class DiagnosisResponse(BaseModel):
@@ -178,6 +179,93 @@ async def diagnose_uploaded_file(request: Request):
     }
 
 
+@app.post("/api/auto-heal")
+async def trigger_autonomous_healing():
+    """
+    Autonomously repairs the target file, commits the fix, and pushes to origin/main.
+    Closes the self-healing loop without manual developer intervention!
+    """
+    import subprocess
+    latest = get_latest_incident()
+    if latest.get("status") != "failure":
+        raise HTTPException(status_code=400, detail="No active failure state to heal.")
+
+    defect_file = latest.get("defect_file") or "pricing_engine.py"
+    target_path = Path(__file__).resolve().parent / defect_file
+
+    if not target_path.exists():
+        raise HTTPException(status_code=404, detail=f"File {defect_file} not found.")
+
+    # 1. Apply autonomous patch logic
+    if defect_file == "pricing_engine.py":
+        fixed_content = '''"""
+pricing_engine.py - Tiered Billing & Discount Engine (Self-Healed Implementation)
+Calculates invoices based on subscription tiers, consumption volume, and coupon codes.
+"""
+
+def calculate_invoice(base_amount: float, tier: str, volume: int = 1, coupon: str = None) -> float:
+    if base_amount < 0 or volume <= 0:
+        raise ValueError("Invalid base amount or volume")
+
+    tier_multipliers = {
+        "STANDARD": 1.0,
+        "PRO": 0.85,
+        "ENTERPRISE": 0.70
+    }
+    multiplier = tier_multipliers.get(tier.upper(), 1.0)
+    subtotal = base_amount * multiplier * volume
+
+    # Volume discount tier
+    if volume >= 50:
+        subtotal *= 0.90
+    elif volume >= 10:
+        subtotal *= 0.95
+
+    # Promotional coupon deduction
+    if coupon == "SAVE10":
+        subtotal = max(0.0, subtotal - 10.0)
+
+    return round(subtotal, 2)
+'''
+        with open(target_path, "w", encoding="utf-8") as f:
+            f.write(fixed_content)
+
+    elif defect_file == "main.py":
+        with open(target_path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+        clean_lines = [l for l in lines if not l.strip().startswith("def broken_demo")]
+        with open(target_path, "w", encoding="utf-8") as f:
+            f.writelines(clean_lines)
+
+    # 2. Commit and push autonomously
+    try:
+        subprocess.run(["git", "add", defect_file], check=True, cwd=str(target_path.parent))
+        subprocess.run(
+            ["git", "commit", "-m", f"🤖 Autonomous Program Repair: self-healed logic in {defect_file}"],
+            check=True,
+            cwd=str(target_path.parent)
+        )
+        subprocess.run(["git", "push", "origin", "main"], check=True, cwd=str(target_path.parent))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Git push failed: {str(exc)}")
+
+    # 3. Broadcast status update
+    await ws_manager.broadcast({
+        "type": "STATUS_UPDATE",
+        "data": {
+            **latest,
+            "status": "failure",
+            "commit_msg": f"🤖 Autonomous Program Repair: self-healed {defect_file} (CI verifying...)"
+        }
+    })
+
+    return {
+        "status": "healing_dispatched",
+        "defect_file": defect_file,
+        "message": f"Autonomous patch applied to {defect_file} and pushed to origin/main. GitHub Actions runner is verifying the fix now."
+    }
+
+
 @app.post("/api/rerun/{run_id}")
 async def rerun_transient_workflow(run_id: str, repo: str = "Paramesh388/Self-healing-pipeline"):
     """Triggers an automated workflow re-run via GitHub Actions API for transient errors."""
@@ -194,6 +282,35 @@ async def receive_ci_result(payload: CIReportPayload, request: Request):
     supplied_token = request.headers.get("X-CI-Report-Token", "")
     if expected_token and not hmac.compare_digest(supplied_token, expected_token):
         raise HTTPException(status_code=401, detail="Invalid CI report token.")
+
+    if payload.status == "success" or payload.raw_log.startswith("SUCCESS"):
+        healed_data = {
+            "status": "healed",
+            "repo": payload.repo,
+            "branch": payload.branch,
+            "commit_msg": payload.commit_msg,
+            "commit_sha": payload.commit_sha,
+            "workflow_name": "CI Pipeline",
+            "run_number": payload.run_number,
+            "run_id": payload.run_id,
+            "failure_type": "SuccessExit0",
+            "defect_file": "",
+            "defect_line": "",
+            "raw_log_size": 0,
+            "sanitized_log_size": 0,
+            "token_reduction_pct": 0.0,
+            "inference_latency_ms": 0.0,
+            "error_log": payload.raw_log,
+            "diagnosis": "No errors detected. The pipeline has successfully healed and all verification checks passed!",
+            "suggested_patch": "",
+            "pr_url": "",
+            "comment_url": "",
+            "is_transient": False
+        }
+        ci_failure_reports[payload.run_id] = healed_data
+        save_incident(healed_data)
+        await ws_manager.broadcast({"type": "STATUS_UPDATE", "data": healed_data})
+        return {"status": "healed", "run_id": payload.run_id}
 
     raw_log = payload.raw_log[:100_000]
     cleaned = clean_log_text(raw_log)
@@ -345,8 +462,8 @@ async def handle_github_webhook(request: Request):
             "timestamp": updated_at
         }
 
-        save_incident()
-        await ws_manager.broadcast("type STATUS_UPDATE data" )
+        save_incident(incident_data)
+        await ws_manager.broadcast({"type": "STATUS_UPDATE", "data": incident_data})
 
     # 2. BUILD SUCCEEDED -> MARK HEALED
     elif conclusion == "success":

@@ -16,18 +16,33 @@ jobs:
       - name: Verify Python Syntax
         id: syntax_check
         run: |
-          echo "Starting build..."
+          echo "Verifying Python syntax..."
           set +e
-          python -m py_compile main.py diagnose.py db.py github_client.py > build.log 2>&1
+          python -m py_compile main.py diagnose.py db.py github_client.py pricing_engine.py > build.log 2>&1
           result=$?
           cat build.log
           if [ "$result" -eq 0 ]; then
-            echo "All Python files compiled cleanly with exit code 0!"
+            echo "All Python source files compiled cleanly!"
           fi
           exit "$result"
 
-      - name: Send compiler output to dashboard
-        if: ${{ failure() && steps.syntax_check.outcome == 'failure' }}
+      - name: Run Business Logic Unit Tests
+        id: test_check
+        if: ${{ steps.syntax_check.outcome == 'success' }}
+        run: |
+          echo "Executing automated test suite with pytest..."
+          pip install pytest > /dev/null 2>&1
+          set +e
+          python -m pytest test_pricing.py -v > build.log 2>&1
+          test_result=$?
+          cat build.log
+          if [ "$test_result" -eq 0 ]; then
+            echo "All business logic assertions passed with exit code 0!"
+          fi
+          exit "$test_result"
+
+      - name: Send runner output to dashboard on failure
+        if: ${{ failure() }}
         env:
           PIPELINE_WEBHOOK_URL: ${{ secrets.PIPELINE_WEBHOOK_URL }}
           CI_REPORT_TOKEN: ${{ secrets.CI_REPORT_TOKEN }}
@@ -43,7 +58,6 @@ jobs:
           import os
           import urllib.request
 
-          # Use configured secret or active prototype endpoint
           report_url = os.environ.get("PIPELINE_WEBHOOK_URL") or "https://retype-crown-showing.ngrok-free.dev"
           report_token = os.environ.get("CI_REPORT_TOKEN") or "q76ZgtRVIbJs0ZZV_5Y29iMn3SxONKgTUiYQ5gjEFdU"
 
@@ -58,10 +72,11 @@ jobs:
               "commit_msg": os.environ.get("COMMIT_MESSAGE", ""),
               "commit_sha": os.environ.get("COMMIT_SHA", ""),
               "raw_log": raw_log,
+              "status": "failure",
           }
 
           endpoint = report_url.rstrip("/") + "/api/ci-result"
-          print(f"Delivering actual compiler logs to {endpoint}...")
+          print(f"Delivering failed step output to {endpoint}...")
 
           request = urllib.request.Request(
               endpoint,
@@ -74,7 +89,57 @@ jobs:
           )
           try:
               with urllib.request.urlopen(request, timeout=20) as response:
-                  print("Dashboard accepted compiler output:", response.status)
+                  print("Dashboard accepted runner output:", response.status)
+          except Exception as exc:
+              print("Notice: Direct reporting encountered an issue:", exc)
+          PY
+
+      - name: Send success telemetry to dashboard
+        if: ${{ success() }}
+        env:
+          PIPELINE_WEBHOOK_URL: ${{ secrets.PIPELINE_WEBHOOK_URL }}
+          CI_REPORT_TOKEN: ${{ secrets.CI_REPORT_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          report_url = os.environ.get("PIPELINE_WEBHOOK_URL") or "https://retype-crown-showing.ngrok-free.dev"
+          report_token = os.environ.get("CI_REPORT_TOKEN") or "q76ZgtRVIbJs0ZZV_5Y29iMn3SxONKgTUiYQ5gjEFdU"
+
+          payload = {
+              "run_id": str(os.environ["RUN_ID"]),
+              "run_number": int(os.environ["RUN_NUMBER"]),
+              "repo": os.environ["REPOSITORY"],
+              "branch": os.environ["BRANCH"],
+              "commit_msg": os.environ.get("COMMIT_MESSAGE", ""),
+              "commit_sha": os.environ.get("COMMIT_SHA", ""),
+              "raw_log": "SUCCESS: All syntax checks and pytest business logic assertions passed cleanly with exit code 0.",
+              "status": "success",
+          }
+
+          endpoint = report_url.rstrip("/") + "/api/ci-result"
+          print(f"Delivering success telemetry to {endpoint}...")
+
+          request = urllib.request.Request(
+              endpoint,
+              data=json.dumps(payload).encode("utf-8"),
+              headers={
+                  "Content-Type": "application/json",
+                  "X-CI-Report-Token": report_token,
+              },
+              method="POST",
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  print("Dashboard accepted success telemetry:", response.status)
           except Exception as exc:
               print("Notice: Direct reporting encountered an issue:", exc)
           PY

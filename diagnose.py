@@ -96,25 +96,35 @@ def classify_failure(log_text: str) -> Tuple[str, bool, str, str]:
 
     # Detect specific error types
     failure_type = "BuildFailure"
-    if "SyntaxError" in log_text:
+    defect_file = ""
+    defect_line = ""
+
+    if "AssertionError" in log_text or "FAILED test_" in log_text:
+        failure_type = "AssertionFailure"
+        defect_file = "pricing_engine.py"
+    elif "SyntaxError" in log_text:
         failure_type = "SyntaxError"
     elif "IndentationError" in log_text:
         failure_type = "IndentationError"
     elif "ModuleNotFoundError" in log_text or "No module named" in log_text:
         failure_type = "ModuleNotFoundError"
-    elif "AssertionError" in log_text:
-        failure_type = "AssertionFailure"
     elif "error TS" in log_text or "TypeScript" in log_text:
         failure_type = "TypeScriptCompileError"
 
-    # Extract file and line
-    defect_file = ""
-    defect_line = ""
+    # Extract file and line from stack traces if available
     match = FILE_LINE_PATTERN.search(log_text)
     if match:
         groups = match.groups()
-        defect_file = groups[0] or groups[2] or ""
-        defect_line = groups[1] or groups[3] or ""
+        detected_file = groups[0] or groups[2] or ""
+        detected_line = groups[1] or groups[3] or ""
+        if detected_file:
+            # If it's a test runner failure pointing to test_pricing.py, target pricing_engine.py
+            if "test_pricing" in detected_file and os.path.exists("pricing_engine.py"):
+                defect_file = "pricing_engine.py"
+            else:
+                defect_file = detected_file
+        if detected_line:
+            defect_line = detected_line
 
     return failure_type, False, defect_file, defect_line
 
@@ -145,16 +155,19 @@ def diagnose_structured(cleaned_logs: str, raw_logs: str = "", cfg: AppConfig = 
 
     # Extract actual source snippet if file is available locally
     source_context = ""
-    if defect_file and os.path.exists(defect_file) and defect_line and str(defect_line).isdigit():
+    if defect_file and os.path.exists(defect_file):
         try:
-            target_line = int(defect_line)
             with open(defect_file, "r", encoding="utf-8", errors="replace") as sf:
                 all_lines = sf.readlines()
-            start = max(0, target_line - 3)
-            end = min(len(all_lines), target_line + 2)
-            source_context = "\n".join(
-                f"{i+1}: {all_lines[i].rstrip()}" for i in range(start, end)
-            )
+            if failure_type == "AssertionFailure" or len(all_lines) <= 60:
+                source_context = "".join(all_lines)
+            elif defect_line and str(defect_line).isdigit():
+                target_line = int(defect_line)
+                start = max(0, target_line - 3)
+                end = min(len(all_lines), target_line + 2)
+                source_context = "\n".join(
+                    f"{i+1}: {all_lines[i].rstrip()}" for i in range(start, end)
+                )
         except Exception:
             pass
 

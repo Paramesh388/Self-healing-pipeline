@@ -996,6 +996,9 @@
                         </div>
                         <div class="banner-actions">
                             <div id="commitMsgChip" class="commit-chip" style="padding:6px 12px; border-radius:8px; background:rgba(2,6,23,0.55); border:1px solid var(--border-subtle); font-family:monospace; font-size:12px;">Commit: -</div>
+                            <button id="btnAutoHeal" class="action-chip-btn hidden" onclick="triggerAutoHeal()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);">
+                                <span>⚡ Apply Autonomous Self-Healing Fix</span>
+                            </button>
                             <a id="btnViewPr" class="action-chip-btn hidden" target="_blank" rel="noopener">
                                 <span>🔗 View Autonomous PR</span>
                             </a>
@@ -1337,6 +1340,7 @@
             const btnPr = document.getElementById("btnViewPr");
             const btnComment = document.getElementById("btnViewComment");
             const btnRerun = document.getElementById("btnRerun");
+            const btnAutoHeal = document.getElementById("btnAutoHeal");
 
             activeRunId = data.run_id || "";
 
@@ -1393,8 +1397,14 @@
 
             if (data.is_transient) {
                 btnRerun.classList.remove("hidden");
+                if (btnAutoHeal) btnAutoHeal.classList.add("hidden");
             } else {
                 btnRerun.classList.add("hidden");
+                if (btnAutoHeal && data.status === "failure") {
+                    btnAutoHeal.classList.remove("hidden");
+                } else if (btnAutoHeal) {
+                    btnAutoHeal.classList.add("hidden");
+                }
             }
 
             if (data.status === "failure") {
@@ -1609,6 +1619,33 @@
                 }
             } catch (err) {
                 btn.textContent = "Re-run Error";
+            }
+        }
+
+        async function triggerAutoHeal() {
+            const btn = document.getElementById("btnAutoHeal");
+            if (!btn) return;
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = "<span>⏳ Applying Fix &amp; Pushing to GitHub...</span>";
+            try {
+                const res = await fetch(`${API_BASE}/api/auto-heal`, { method: "POST" });
+                const data = await res.json();
+                if (res.ok) {
+                    btn.innerHTML = "<span>🚀 Fix Dispatched! CI Verifying...</span>";
+                    setTimeout(() => {
+                        btn.innerHTML = originalHtml;
+                        btn.disabled = false;
+                    }, 8000);
+                } else {
+                    alert(`Auto-Heal failed: ${data.detail || "Unknown error"}`);
+                    btn.innerHTML = originalHtml;
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                alert(`Network error during Auto-Heal: ${err.message}`);
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
             }
         }
 
