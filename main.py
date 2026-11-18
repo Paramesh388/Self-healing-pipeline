@@ -367,3 +367,4 @@ async def handle_github_webhook(request: Request):
         await ws_manager.broadcast({"type": "STATUS_UPDATE", "data": healed_data})
 
     return {"status": "success", "message": "Webhook processed successfully."}
+def broken_demo( 
