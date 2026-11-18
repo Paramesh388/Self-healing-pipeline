@@ -150,17 +150,22 @@ def diagnose_structured(cleaned_logs: str, raw_logs: str = "", cfg: AppConfig = 
 
     system_prompt = (
         "You are an expert autonomous DevOps engineer. Analyze the provided CI/CD error log. "
-        "Your task is to identify the defect file and line, pinpoint the exact root cause, and provide a concrete fix. "
+        "CRITICAL ACCURACY RULE: Look for explicit compiler/traceback markers like 'File \"...\", line X' or 'error TS'. "
+        "Extract ONLY the exact file and line number explicitly reported by the compiler in the log. "
+        "DO NOT guess, fabricate, or hallucinate line numbers or function names if they are not in the log. "
+        "If no line number is in the log, state: 'Defect Location: Not present in high-level log text'. "
         "Format your answer with standard markdown containing:\n"
         "### Root Cause\n<one concise sentence>\n\n"
-        "### Defect Location\n<file and line if known>\n\n"
+        "### Defect Location\n<file and line number from compiler>\n\n"
         "### Step-by-Step Fix\n<numbered actionable steps>\n\n"
         "### Suggested Code Fix\n```<language>\n<exact corrected code or patch>\n```"
     )
 
     user_prompt = (
-        f"Filtered CI/CD error log:\n```\n{cleaned_logs}\n```\n"
-        f"Pre-detected failure category: {failure_type}. Please provide definitive root cause and remediation."
+        f"CI/CD error log:\n```\n{cleaned_logs}\n```\n"
+        f"Compiler pre-analysis: Category={failure_type}"
+        + (f", Location={defect_file}:{defect_line}" if defect_file and defect_line else "")
+        + ". Analyze strictly based on this actual log text."
     )
 
     models_to_try = [cfg.model_name] + [m for m in cfg.fallback_models if m != cfg.model_name]

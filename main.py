@@ -252,11 +252,27 @@ async def handle_github_webhook(request: Request):
         print(f"[CI Webhook] Build Failed: Run #{run_number} ({run_id})")
 
         # Step A: Check if a direct CI report arrived, else fetch via GitHub REST API
-        report = ci_failure_reports.get(run_id)
+        report = ci_failure_reports.get(run_id) or ci_failure_reports.get(commit_sha)
         raw_error_text = ""
+        diagnosis_record = None
+        cleaned_logs = ""
 
-        if report:
+        if report and report.get("diagnosis"):
+            print(f"[Notice] Reusing high-fidelity runner log report for Run #{run_number}")
+            diagnosis_record = {
+                "diagnosis": report["diagnosis"],
+                "failure_type": report["failure_type"],
+                "defect_file": report["defect_file"],
+                "defect_line": report["defect_line"],
+                "raw_log_size": report["raw_log_size"],
+                "sanitized_log_size": report["sanitized_log_size"],
+                "token_reduction_pct": report["token_reduction_pct"],
+                "inference_latency_ms": report["inference_latency_ms"],
+                "suggested_patch": report["suggested_patch"],
+                "is_transient": report["is_transient"],
+            }
             raw_error_text = report["error_log"]
+            cleaned_logs = report["error_log"]
         else:
             # Attempt to fetch real runner logs via GitHub API
             log_success, fetched_logs = github_client.fetch_run_logs(repo_name, run_id)
@@ -269,10 +285,8 @@ async def handle_github_webhook(request: Request):
                     f"Triggering Commit: '{commit_msg}'\n"
                     f"ERROR: Process completed with exit code 1 during build step execution."
                 )
-
-        # Step B: Sanitize and Diagnose
-        cleaned_logs = clean_log_text(raw_error_text)
-        diagnosis_record = diagnose_structured(cleaned_logs or raw_error_text, raw_error_text)
+            cleaned_logs = clean_log_text(raw_error_text)
+            diagnosis_record = diagnose_structured(cleaned_logs or raw_error_text, raw_error_text)
 
         pr_url = ""
         comment_url = ""
