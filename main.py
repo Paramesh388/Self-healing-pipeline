@@ -13,8 +13,7 @@ load_dotenv()
 # Initialize the FastAPI app
 app = FastAPI(title="Self-Healing CI/CD API")
 
-app.add_middleware(
-    CORSMiddleware,
+app.add_middleware(CORSMiddleware,
     allow_origins=["*"],
     allow_credentials=False,
     allow_methods=["*"],

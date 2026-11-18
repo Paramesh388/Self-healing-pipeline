@@ -8,15 +8,53 @@
 
 ---
 
-## 1. Project Overview
+## 1. Quick Control: How to Shutdown & Restart
 
-In continuous integration and continuous delivery (CI/CD) pipelines, build failures frequently generate thousands of lines of noisy console logs. Developers lose substantial time manually locating stack traces and identifying root causes.
+### 🛑 How to Shutdown Every Background Process
+If you want to completely stop the FastAPI backend and ngrok tunnel, run this single command in **PowerShell**:
 
-This prototype provides an **automated, self-healing pipeline observability platform**:
-1. **Event Capture:** GitHub Actions dispatches real-time `workflow_run` webhooks upon job completion.
-2. **Log Sanitization:** A regex-driven filter strips environmental noise, extracting only high-priority lines matching `(ERROR|FATAL|FAIL|Exception)`. This reduces token payload by over **80%**, mitigating LLM hallucinations and saving API costs.
-3. **AI Root Cause Analysis (RCA):** Sanitized telemetry is passed to the Groq API running `llama-3.3-70b-versatile` with automatic fallback logic to generate a single-sentence root cause and step-by-step remediation commands in sub-second speeds.
-4. **DevOps Observability Dashboard:** A glassmorphic dark-mode dashboard polls the backend every 3 seconds, visualizing transitions across **Listening**, **Build Failure Detected (Red Alert)**, and **Pipeline Healed & Passing (Green Confirmation)**.
+```powershell
+Get-Process -Name python*,ngrok*,uvicorn* -ErrorAction SilentlyContinue | Stop-Process -Force
+```
+
+*(Alternatively, in Command Prompt: `taskkill /F /IM python.exe /T` and `taskkill /F /IM ngrok.exe /T`)*
+
+---
+
+### 🚀 How to Run the Entire Project From Scratch (Start to Finish)
+
+Follow these exact steps whenever you boot up your computer or prepare for a live demonstration:
+
+#### Step 1: Open Terminal 1 (Start FastAPI Backend)
+Open PowerShell, navigate to the project directory, and launch the server:
+```powershell
+cd "C:\Users\PARAMESH S\OneDrive\Desktop\PRO"
+python -m uvicorn main:app --host 127.0.0.1 --port 8000
+```
+- Server will run at: `http://127.0.0.1:8000`
+
+#### Step 2: Open Terminal 2 (Start ngrok Tunnel)
+Open a second PowerShell window and launch the tunnel:
+```powershell
+ngrok http 8000
+```
+- ngrok will output an active public URL, for example:  
+  `Forwarding https://xxxx-xxxx.ngrok-free.dev -> http://localhost:8000`
+
+#### Step 3: Link GitHub Webhook
+1. Go to your GitHub repository:  
+   👉 **`https://github.com/Paramesh388/Self-healing-pipeline/settings/hooks`**
+2. Click **Edit** on your existing webhook (or **Add webhook**):
+   - **Payload URL:** `https://<your-ngrok-subdomain>.ngrok-free.dev/api/webhook`
+   - **Content type:** `application/json`
+   - **Events:** Select **Let me select individual events** → Check **Workflow runs** (`workflow_run`).
+3. Click **Update webhook** / **Add webhook** (ensure the green checkmark appears).
+
+#### Step 4: Open the Observability Dashboard
+In your browser (Chrome/Edge), open:
+👉 **`http://127.0.0.1:8000/`** (or open `index.html` directly)
+- Confirm the status badge says: **`● Listening for GitHub Webhooks...`**
+- Confirm the API indicator says: **`API Online (127.0.0.1:8000)`**
 
 ---
 
@@ -69,169 +107,130 @@ This prototype provides an **automated, self-healing pipeline observability plat
 
 ---
 
-## 3. Project Directory Structure
+## 3. Two Live Demo Failure & Fix Instances
 
-```text
-PRO/
-│
-├── .github/
-│   └── workflows/
-│       └── build.yml       # GitHub Actions CI workflow (syntax validation via py_compile)
-│
-├── .env                    # Environment variables (GROQ_API_KEY) — Git-ignored
-├── .gitignore              # Ignores .env, __pycache__/, *.pyc
-│
-├── diagnose.py             # Regex filter (clean_log_text) and Groq LLM client with fallback
-├── main.py                 # FastAPI backend server exposing webhook, polling, and diagnosis APIs
-├── index.html              # Modern dark-mode DevOps observability dashboard
-├── error.log               # Reference local failure log for offline testing
-└── README.md               # Project documentation and demo presentation guide
-```
+You have **two distinct real-world test cases** to demonstrate automated failure capture and self-healing. Choose either one or demonstrate both during your review.
 
 ---
 
-## 4. Installation & Local Setup
+### 🧪 Instance 1: Python Syntax Error in `main.py`
+This scenario demonstrates what happens when a developer accidentally commits incomplete code or an unclosed parenthesis/function signature.
 
-### 4.1 Prerequisites
-- Python 3.11 or higher
-- Git installed and configured
-- [ngrok](https://ngrok.com/) installed
-- Groq Cloud API Key ([https://console.groq.com/keys](https://console.groq.com/keys))
+#### Step A: Introduce the Error
+Open `main.py` in VS Code, scroll to the bottom, and add this broken line:
+```python
+def broken_demo(
+```
 
-### 4.2 Clone & Install Dependencies
+#### Step B: Commit & Push to GitHub
 ```powershell
-git clone https://github.com/Paramesh388/Self-healing-pipeline.git
-cd Self-healing-pipeline
-
-# Install Python packages
-pip install fastapi uvicorn openai python-dotenv pydantic requests
+git add main.py
+git commit -m "Test: introduce syntax error in main.py"
+git push origin main
 ```
 
-### 4.3 Configure Secrets
-Create a `.env` file in the project root:
-```env
-GROQ_API_KEY=gsk_your_groq_api_key_here
-```
-*(Ensure `.env` is never committed to GitHub; it is listed inside `.gitignore`.)*
+#### Step C: What Happens on Screen (Red Failure State)
+1. GitHub Actions runs `.github/workflows/build.yml` (`python -m py_compile main.py diagnose.py`).
+2. Compilation halts with `SyntaxError: '(' was never closed` and exits with code `1`.
+3. GitHub sends a webhook to FastAPI.
+4. Within **3 seconds**, your dashboard at `http://127.0.0.1:8000/` automatically turns **RED**:
+   - Badge updates to: **`⚠️ Build Failure Detected`**
+   - Telemetry displays the repository, branch, and failed run number.
+   - **Groq AI RCA** outputs: *"Root Cause: An unclosed function header in main.py prevented compilation"* and provides the exact line fix.
 
-### 4.4 Start Services
-Open two terminal windows:
-
-**Terminal 1 — FastAPI Server:**
+#### Step D: Apply the Fix & Heal the Pipeline
+In `main.py`, remove the line `def broken_demo(` and save the file. Then push:
 ```powershell
-python -m uvicorn main:app --host 127.0.0.1 --port 8000
+git add main.py
+git commit -m "Fix: remove broken function header to heal pipeline"
+git push origin main
 ```
+- GitHub Actions compiles cleanly with exit code `0`.
+- The dashboard automatically flips to **EMERALD GREEN**: **`✅ Pipeline Healed & Passing`**.
 
-**Terminal 2 — ngrok Tunnel:**
+---
+
+### 🧪 Instance 2: Indentation / Syntax Defect in `diagnose.py`
+This scenario demonstrates what happens when a developer introduces an improper indentation or malformed block in a utility module.
+
+#### Step A: Introduce the Error
+Open `diagnose.py` in VS Code, scroll to the bottom, and add these misaligned lines:
+```python
+  def misaligned_sanitizer():
+  pass
+```
+*(Notice the leading 2 spaces before `def`, which is invalid Python at the module level).*
+
+#### Step B: Commit & Push to GitHub
 ```powershell
-ngrok http 8000
+git add diagnose.py
+git commit -m "Test: introduce indentation error in diagnose.py"
+git push origin main
 ```
-*Copy the generated forwarding URL (e.g., `https://your-domain.ngrok-free.dev`).*
 
-### 4.5 Configure GitHub Webhook
-1. Go to your GitHub repository: **Settings → Webhooks → Add webhook**.
-2. **Payload URL:** `https://your-domain.ngrok-free.dev/api/webhook`
-3. **Content type:** `application/json`
-4. **Which events would you like to trigger this webhook?**
-   - Select **Let me select individual events**.
-   - Check **Workflow runs** (`workflow_run`).
-   - Uncheck **Pushes** (to avoid duplicate triggers).
-5. Click **Add webhook** (confirm active green checkmark).
+#### Step C: What Happens on Screen (Red Failure State)
+1. GitHub Actions runs `python -m py_compile main.py diagnose.py`.
+2. Compilation fails with:  
+   `IndentationError: unexpected indent (diagnose.py)` and exits with code `1`.
+3. GitHub sends a webhook to FastAPI.
+4. The dashboard automatically turns **RED**:
+   - Sanitized logs display the exact `IndentationError` line.
+   - **Groq AI RCA** outputs: *"Root Cause: An unexpected indent at module level in diagnose.py"* with step-by-step indentation correction guidance.
 
----
-
-## 5. Live Project Demo Script (Step-by-Step for Evaluators)
-
-Follow this structured 4-stage presentation when showcasing the project for academic evaluation or research reviews:
-
-### Screen Arrangement
-- **Left Side:** VS Code with [main.py](file:///c:/Users/PARAMESH%20S/OneDrive/Desktop/PRO/main.py) and a terminal open.
-- **Right Side:** Web browser opened to `http://127.0.0.1:8000/` alongside GitHub Actions in a second tab.
+#### Step D: Apply the Fix & Heal the Pipeline
+In `diagnose.py`, delete the misaligned lines and save the file. Then push:
+```powershell
+git add diagnose.py
+git commit -m "Fix: remove misaligned indentation to heal pipeline"
+git push origin main
+```
+- GitHub Actions passes with exit code `0`.
+- The dashboard automatically flips to **EMERALD GREEN**: **`✅ Pipeline Healed & Passing`**.
 
 ---
 
-### Stage 1: The Pitch & Manual Log Analyzer (1 Minute)
-1. **Explain the Motivation:**
-   > *"Modern CI/CD pipelines generate voluminous logs. When a failure occurs, engineers spend excessive time searching for relevant error lines. Our system introduces an automated pipeline that sanitizes logs via regular expressions, runs Root Cause Analysis via Groq Llama-3.3-70B, and streams real-time remediation to the developer."*
-2. **Show the Manual Analyzer:**
-   - On `http://127.0.0.1:8000/`, click the **"Manual Build Log Analyzer"** tab.
-   - Click a preset (e.g., **"Python SyntaxError"** or **"TypeScript Compile"**).
-   - Click **"Analyze Log with Groq AI"**.
-   - Point out:
-     - **Sanitized Error Lines:** Raw log noise is removed; only `ERROR`, `FATAL`, `FAIL`, and `Exception` lines remain.
-     - **AI Diagnosis:** Formatted root cause statement and actionable code fixes with a **Copy Fix** button.
+### 💡 Bonus Instant Demo: Manual Build Log Analyzer
+If you want to showcase the AI diagnosis instantly **without running git push**:
+1. Click the **"Manual Build Log Analyzer"** tab on `http://127.0.0.1:8000/`.
+2. Click the preset button:
+   - **"Python SyntaxError"** (Simulates py_compile syntax breaks)
+   - **"Missing Dependency"** (Simulates `ModuleNotFoundError: No module named 'fastapi'`)
+   - **"TypeScript Compile"** (Simulates Angular/React `tsc` compile errors)
+3. Click **"Analyze Log with Groq AI"**.
+4. In under **2 seconds**, show the evaluators:
+   - **Sanitized Error Lines:** Regex filter isolates error lines, stripping 80%+ noise.
+   - **Structured AI RCA:** Groq Llama-3.3-70B gives root cause + copy-pasteable terminal commands.
+   - Click the **"Copy Fix"** button.
 
 ---
 
-### Stage 2: Simulating a Build Failure (The Red State) (1.5 Minutes)
-1. Switch to the **"Live Pipeline Monitor"** tab. Note the status is **Listening for GitHub Webhooks...**.
-2. In VS Code, open [main.py](file:///c:/Users/PARAMESH%20S/OneDrive/Desktop/PRO/main.py), scroll to the very bottom, and append an intentional syntax error:
-   ```python
-   def broken_demo(
-   ```
-3. Commit and push the failure:
-   ```powershell
-   git add main.py
-   git commit -m "Simulate CI syntax failure"
-   git push origin main
-   ```
-4. **Watch the live transition:**
-   - GitHub Actions runs `python -m py_compile main.py diagnose.py` and fails with exit code `1`.
-   - GitHub Actions dispatches the webhook to FastAPI via ngrok.
-   - Within **3 seconds**, the dashboard automatically turns **RED**:
-     - Status Badge flips to **`⚠️ Build Failure Detected`**.
-     - Shows the commit message, branch name, and run number.
-     - Renders sanitized failure logs and Groq AI's structured **Root Cause & Step-by-Step Fix**.
+## 4. Quick Command Cheat-Sheet
+
+| Action | Commands | Expected UI State |
+| :--- | :--- | :--- |
+| **Shutdown Everything** | `Get-Process -Name python*,ngrok*,uvicorn* -ErrorAction SilentlyContinue \| Stop-Process -Force` | All processes terminate |
+| **Start Backend** | `python -m uvicorn main:app --host 127.0.0.1 --port 8000` | Port 8000 active |
+| **Start Tunnel** | `ngrok http 8000` | Port 4040 active |
+| **Instance 1: Break** | Add `def broken_demo(` to `main.py`<br>`git add main.py; git commit -m "break main"; git push origin main` | Turns **RED** (SyntaxError) |
+| **Instance 1: Heal** | Delete `def broken_demo(` from `main.py`<br>`git add main.py; git commit -m "heal main"; git push origin main` | Turns **GREEN** (Healed) |
+| **Instance 2: Break** | Add indented `  def bad(): pass` to `diagnose.py`<br>`git add diagnose.py; git commit -m "break diagnose"; git push origin main` | Turns **RED** (IndentationError) |
+| **Instance 2: Heal** | Delete `  def bad(): pass` from `diagnose.py`<br>`git add diagnose.py; git commit -m "heal diagnose"; git push origin main` | Turns **GREEN** (Healed) |
 
 ---
 
-### Stage 3: Explaining the AI Root Cause (30 Seconds)
-1. Highlight that without logging into the GitHub Actions runner, the developer instantly sees:
-   - The exact broken function/file name.
-   - The Root Cause in plain, clear language.
-   - The exact shell/git commands to resolve the issue.
+## 5. Viva / Evaluator Technical Defense Q&A
 
----
-
-### Stage 4: Self-Healing & Pipeline Recovery (The Green State) (1 Minute)
-1. In [main.py](file:///c:/Users/PARAMESH%20S/OneDrive/Desktop/PRO/main.py), delete the broken line (`def broken_demo(`) and save the file.
-2. Commit and push the fix:
-   ```powershell
-   git add main.py
-   git commit -m "Fix: resolve syntax error to heal pipeline"
-   git push origin main
-   ```
-3. **Watch the recovery transition:**
-   - GitHub Actions runs `py_compile`, cleanly compiles both files, and exits with code `0`.
-   - GitHub sends the `conclusion: "success"` webhook.
-   - The dashboard automatically flips to **EMERALD GREEN**:
-     - Status Badge flips to **`✅ Pipeline Healed & Passing`**.
-     - Displays confirmation that all CI checks succeeded with exit code 0.
-
----
-
-## 6. Demo Command Quick-Reference Table
-
-| Step | Action in Code / Terminal | Command | Dashboard Outcome |
-| :--- | :--- | :--- | :--- |
-| **1. Break Build** | Add `def broken_demo(` to `main.py` | `git add main.py`<br>`git commit -m "Simulate CI syntax failure"`<br>`git push origin main` | Transitions to **RED** with Groq AI RCA & Fix |
-| **2. Heal Build** | Delete `def broken_demo(` from `main.py` | `git add main.py`<br>`git commit -m "Fix: resolve syntax error"`<br>`git push origin main` | Transitions to **GREEN** ("Pipeline Healed") |
-
----
-
-## 7. Viva & Technical Evaluation Q&A
-
-### Q1: Why perform regex filtering instead of sending raw logs directly to the LLM?
+### Q1: Why use regular expression filtering before passing logs to the LLM?
 > **Answer:**  
-> Real-world CI logs often span 5,000–20,000 lines, packed with environment configurations and status messages. Sending raw logs exhausts context windows, wastes expensive tokens, and induces hallucinations. Our regex filter isolates critical failure indicators (`ERROR|FATAL|FAIL|Exception`), trimming token count by >80% while retaining full diagnostic signal.
+> Real-world CI logs often exceed 5,000–20,000 lines with routine environmental logs. Passing raw logs wastes API tokens, increases latency, and increases LLM hallucination risk. Our regex filter isolates critical failure signatures (`ERROR`, `FATAL`, `FAIL`, `Exception`), reducing prompt token volume by >80% while retaining full diagnostic fidelity.
 
-### Q2: Why choose Groq and `llama-3.3-70b-versatile` over other providers?
+### Q2: Why did you choose Groq and Llama-3.3-70B?
 > **Answer:**  
-> Groq's LPU (Language Processing Unit) architecture achieves inference speeds of 250–300 tokens per second, returning complete diagnoses in under 2 seconds. For developer productivity during continuous delivery, immediate feedback is critical. In addition, our `diagnose.py` implementation incorporates automated fallback models in case of endpoint outages.
+> Groq’s LPU (Language Processing Unit) architecture delivers generation speeds of ~250–300 tokens/sec. For developer experience in CI/CD, getting an actionable diagnosis in under 2 seconds is critical. Furthermore, our code implements automatic fallback models in case the requested model is unavailable.
 
-### Q3: How does the system achieve real-time synchronization with the dashboard?
+### Q3: How does the backend receive build updates in real-time?
 > **Answer:**  
-> The dashboard uses lightweight HTTP polling (`/api/latest-webhook` every 3 seconds) paired with an in-memory state cache updated asynchronously by GitHub's `workflow_run` webhook. This eliminates WebSocket connection state overhead while maintaining sub-3-second visual updates.
+> We leverage GitHub Actions' native webhook architecture via the `workflow_run` event. When a workflow concludes, GitHub dispatches an event payload to our FastAPI endpoint exposed via ngrok, triggering asynchronous log processing, regex sanitization, and AI diagnosis.
 
 ### Q4: How is security handled in this prototype?
 > **Answer:**  
@@ -241,6 +240,6 @@ Follow this structured 4-stage presentation when showcasing the project for acad
 
 ---
 
-## 8. License & Acknowledgements
+## 6. License & Acknowledgements
 - Developed for academic research and evaluation in Advanced Software Engineering & DevOps Automation.
-- Built using open-source tools: [FastAPI](https://fastapi.tiangolo.com/), [Groq SDK](https://console.groq.com/), and [GitHub Actions](https://github.com/features/actions).
+- Built using open-source tools: [FastAPI](https://fastapi.tiangolo.com/), [Groq Cloud](https://console.groq.com/), and [GitHub Actions](https://github.com/features/actions).
