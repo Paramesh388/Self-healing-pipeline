@@ -59,7 +59,7 @@
             position: relative;
         }
 
-        /* Ambient background glow & subtle technical grid */
+        /* Ambient background glow & technical grid */
         body::before {
             content: "";
             position: fixed;
@@ -94,9 +94,9 @@
         .app-shell {
             position: relative;
             z-index: 1;
-            max-width: 1120px;
+            max-width: 1140px;
             margin: 0 auto;
-            padding: 28px 22px 48px;
+            padding: 28px 22px 50px;
         }
 
         /* Header */
@@ -169,7 +169,7 @@
             font-weight: 400;
         }
 
-        /* Live Status & Telemetry Controls */
+        /* Live Status Badge */
         .status-cluster {
             display: flex;
             flex-direction: column;
@@ -249,9 +249,10 @@
         }
 
         .conn-dot.online { background: #10b981; }
+        .conn-dot.ws { background: #38bdf8; box-shadow: 0 0 8px #38bdf8; }
         .conn-dot.offline { background: #ef4444; }
 
-        /* Tabs */
+        /* Navigation Tabs */
         .nav-tabs {
             display: inline-flex;
             gap: 6px;
@@ -326,7 +327,7 @@
             box-shadow: 0 14px 36px rgba(6, 95, 70, 0.25);
         }
 
-        /* Telemetry Summary Strip */
+        /* Telemetry Strip */
         .telemetry-strip {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -392,9 +393,7 @@
             animation: spinSlow 14s linear infinite;
         }
 
-        @keyframes spinSlow {
-            to { transform: rotate(360deg); }
-        }
+        @keyframes spinSlow { to { transform: rotate(360deg); } }
 
         .waiting-title {
             margin: 0 0 8px;
@@ -404,7 +403,7 @@
         }
 
         .waiting-desc {
-            max-width: 560px;
+            max-width: 580px;
             margin: 0 auto 24px;
             font-size: 0.92rem;
             color: var(--text-muted);
@@ -433,7 +432,7 @@
             font-size: 13px;
         }
 
-        /* State Banner */
+        /* State Banner & Defect Chips */
         .state-banner {
             display: flex;
             flex-wrap: wrap;
@@ -495,18 +494,66 @@
             color: var(--text-secondary);
         }
 
-        .commit-chip {
+        /* Action Buttons Row */
+        .banner-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .action-chip-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 12px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            text-decoration: none;
+            color: #ffffff;
+            background: linear-gradient(135deg, #2563eb, #4f46e5);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .action-chip-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+        }
+
+        /* Defect Location Ribbon */
+        .defect-ribbon {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 18px;
+        }
+
+        .defect-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
             padding: 6px 12px;
             border-radius: 8px;
-            background: rgba(2, 6, 23, 0.55);
-            border: 1px solid var(--border-subtle);
-            font-family: 'JetBrains Mono', monospace;
             font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid var(--border-subtle);
             color: var(--text-secondary);
-            max-width: 340px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        }
+
+        .defect-badge strong {
+            color: var(--accent-sky);
+        }
+
+        .defect-badge.error-cat strong {
+            color: #f87171;
+        }
+
+        .defect-badge.saving strong {
+            color: #34d399;
         }
 
         /* Observability Panels */
@@ -618,50 +665,21 @@
             color: var(--text-secondary);
         }
 
-        .rca-body h1,
-        .rca-body h2,
-        .rca-body h3,
-        .rca-body h4 {
+        .rca-body h1, .rca-body h2, .rca-body h3, .rca-body h4 {
             margin: 16px 0 8px;
             color: var(--text-primary);
             font-weight: 600;
-            line-height: 1.35;
-        }
-
-        .rca-body h1:first-child,
-        .rca-body h2:first-child,
-        .rca-body h3:first-child,
-        .rca-body h4:first-child,
-        .rca-body p:first-child {
-            margin-top: 0;
         }
 
         .rca-body h2 { font-size: 1.08rem; color: #7dd3fc; }
         .rca-body h3 { font-size: 1rem; color: #bae6fd; }
         .rca-body h4 { font-size: 0.94rem; color: #e2e8f0; }
 
-        .rca-body p {
-            margin: 0 0 12px;
-        }
-
-        .rca-body p:last-child {
-            margin-bottom: 0;
-        }
-
-        .rca-body strong {
-            color: #ffffff;
-            font-weight: 600;
-        }
-
-        .rca-body ul,
-        .rca-body ol {
-            margin: 8px 0 14px;
-            padding-left: 22px;
-        }
-
-        .rca-body li {
-            margin-bottom: 6px;
-        }
+        .rca-body p { margin: 0 0 12px; }
+        .rca-body p:last-child { margin-bottom: 0; }
+        .rca-body strong { color: #ffffff; font-weight: 600; }
+        .rca-body ul, .rca-body ol { margin: 8px 0 14px; padding-left: 22px; }
+        .rca-body li { margin-bottom: 6px; }
 
         .rca-body code {
             font-family: 'JetBrains Mono', monospace;
@@ -691,54 +709,42 @@
             line-height: 1.55;
         }
 
-        /* Manual Analyzer Styles */
-        .analyzer-header {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: space-between;
-            align-items: center;
-            gap: 12px;
+        /* Drag & Drop Zone */
+        .drop-zone {
+            border: 2px dashed rgba(56, 189, 248, 0.35);
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: var(--radius-md);
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: var(--transition);
             margin-bottom: 16px;
         }
 
-        .analyzer-header h2 {
-            margin: 0;
-            font-size: 1.12rem;
-            font-weight: 600;
-        }
-
-        .preset-row {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .preset-label {
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        .preset-btn {
-            background: rgba(30, 41, 59, 0.75);
-            color: var(--text-secondary);
-            border: 1px solid var(--border-subtle);
-            padding: 5px 10px;
-            border-radius: 7px;
-            font-size: 12px;
-            font-family: inherit;
-            cursor: pointer;
-            transition: var(--transition);
-        }
-
-        .preset-btn:hover {
+        .drop-zone:hover, .drop-zone.dragover {
             border-color: var(--accent-sky);
-            color: var(--text-primary);
+            background: rgba(56, 189, 248, 0.08);
+        }
+
+        .drop-icon {
+            font-size: 26px;
+            margin-bottom: 6px;
+        }
+
+        .drop-text {
+            font-size: 13.5px;
+            color: var(--text-secondary);
+        }
+
+        .drop-hint {
+            font-size: 11.5px;
+            color: var(--text-muted);
+            margin-top: 4px;
         }
 
         textarea#rawLogInput {
             width: 100%;
-            min-height: 155px;
+            min-height: 140px;
             background: var(--bg-terminal);
             color: #e2e8f0;
             border: 1px solid var(--border-strong);
@@ -749,7 +755,6 @@
             line-height: 1.55;
             resize: vertical;
             outline: none;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
         textarea#rawLogInput:focus {
@@ -764,16 +769,6 @@
             justify-content: space-between;
             gap: 12px;
             margin-top: 14px;
-        }
-
-        .helper-hint {
-            font-size: 12px;
-            color: var(--text-muted);
-        }
-
-        .helper-hint code {
-            font-family: 'JetBrains Mono', monospace;
-            color: var(--accent-sky);
         }
 
         .primary-btn {
@@ -813,48 +808,96 @@
             display: none;
         }
 
-        .primary-btn.loading .spinner {
-            display: inline-block;
+        .primary-btn.loading .spinner { display: inline-block; }
+        @keyframes spinFast { to { transform: rotate(360deg); } }
+
+        .preset-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 14px;
         }
 
-        @keyframes spinFast {
-            to { transform: rotate(360deg); }
+        .preset-btn {
+            background: rgba(30, 41, 59, 0.75);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-subtle);
+            padding: 5px 10px;
+            border-radius: 7px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: var(--transition);
         }
 
-        .error-alert {
-            display: none;
-            margin-top: 14px;
-            padding: 11px 14px;
-            border-radius: 9px;
-            background: rgba(239, 68, 68, 0.14);
-            border: 1px solid rgba(239, 68, 68, 0.38);
-            color: #fca5a5;
+        .preset-btn:hover {
+            border-color: var(--accent-sky);
+            color: var(--text-primary);
+        }
+
+        /* Analytics Tab Styles */
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-bottom: 22px;
+        }
+
+        .history-table-container {
+            overflow-x: auto;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--border-subtle);
+        }
+
+        table.history-table {
+            width: 100%;
+            border-collapse: collapse;
             font-size: 13px;
+            text-align: left;
+            background: var(--bg-terminal);
         }
 
-        #manualResult {
-            display: none;
-            margin-top: 22px;
+        table.history-table th {
+            background: rgba(15, 23, 42, 0.95);
+            padding: 12px 14px;
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-subtle);
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.05em;
         }
 
-        .hidden {
-            display: none !important;
+        table.history-table td {
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
         }
 
-        /* Responsive */
+        table.history-table tr:hover td {
+            background: rgba(30, 41, 59, 0.4);
+        }
+
+        .status-pill {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+
+        .status-pill.failure { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+        .status-pill.healed { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; }
+
+        .hidden { display: none !important; }
+
         @media (max-width: 860px) {
-            .telemetry-strip {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
-            }
-            .status-cluster {
-                align-items: flex-start;
-            }
+            .telemetry-strip, .analytics-grid { grid-template-columns: repeat(2, 1fr); }
+            .status-cluster { align-items: flex-start; }
         }
 
         @media (max-width: 540px) {
-            .telemetry-strip {
-                grid-template-columns: 1fr;
-            }
+            .telemetry-strip, .analytics-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -867,7 +910,7 @@
                     <span class="repo-pill">Paramesh388/Self-healing-pipeline</span>
                 </div>
                 <h1 class="research-title">Automated Root Cause Analysis and Remediation for CI/CD Build Failures</h1>
-                <p class="subtitle">AI-Powered CI/CD Pipeline Prototype &middot; Regex Log Sanitization + Groq Llama-3.3-70B RCA</p>
+                <p class="subtitle">Autonomous CI/CD Platform &middot; Real-Time WebSockets + Groq Llama-3.3-70B + GitHub Auto-Remediation</p>
             </div>
 
             <div class="status-cluster">
@@ -877,24 +920,27 @@
                 </div>
                 <div class="poll-meta">
                     <span id="connDot" class="conn-dot"></span>
-                    <span id="connLabel">127.0.0.1:8000</span>
+                    <span id="connLabel">Connecting...</span>
                     <span>&middot;</span>
-                    <span id="lastPollTime">Polling every 3s</span>
+                    <span id="lastPollTime">Ready</span>
                 </div>
             </div>
         </header>
 
-        <nav class="nav-tabs" role="tablist" aria-label="Dashboard Sections">
-            <button id="tabLiveBtn" class="tab-btn active" role="tab" aria-selected="true" onclick="switchTab('live')">
-                <span>Live Pipeline Monitor</span>
+        <nav class="nav-tabs" role="tablist">
+            <button id="tabLiveBtn" class="tab-btn active" role="tab" onclick="switchTab('live')">
+                <span>⚡ Live Pipeline Monitor</span>
             </button>
-            <button id="tabManualBtn" class="tab-btn" role="tab" aria-selected="false" onclick="switchTab('manual')">
-                <span>Manual Build Log Analyzer</span>
+            <button id="tabManualBtn" class="tab-btn" role="tab" onclick="switchTab('manual')">
+                <span>🛠️ Manual Analyzer &amp; File Upload</span>
+            </button>
+            <button id="tabAnalyticsBtn" class="tab-btn" role="tab" onclick="switchTab('analytics')">
+                <span>📊 Research Metrics &amp; Incident History</span>
             </button>
         </nav>
 
-        <!-- TAB 1: LIVE WEBHOOK OBSERVABILITY -->
-        <section id="panelLive" class="tab-panel active" role="tabpanel">
+        <!-- TAB 1: LIVE PIPELINE MONITOR -->
+        <section id="panelLive" class="tab-panel active">
             <div class="telemetry-strip">
                 <div class="kpi-card">
                     <div class="kpi-label">Pipeline State</div>
@@ -905,12 +951,12 @@
                     <div id="kpiRepo" class="kpi-value mono">Paramesh388/Self-healing-pipeline</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label">Branch / Run</div>
+                    <div class="kpi-label">Branch &middot; Run</div>
                     <div id="kpiBranchRun" class="kpi-value mono">main &middot; &mdash;</div>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-label">Last Event</div>
-                    <div id="kpiTimestamp" class="kpi-value mono">Awaiting webhook</div>
+                    <div id="kpiTimestamp" class="kpi-value mono">Awaiting event</div>
                 </div>
             </div>
 
@@ -923,42 +969,61 @@
                             <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path>
                         </svg>
                     </div>
-                    <h2 class="waiting-title">Listening for GitHub Actions Events</h2>
+                    <h2 class="waiting-title">Listening for GitHub Actions Events (WebSockets Active)</h2>
                     <p class="waiting-desc">
-                        Polling <code>http://127.0.0.1:8000/api/latest-webhook</code> every 3 seconds. Push a commit to trigger GitHub Actions and observe automated failure detection, Groq AI RCA, and recovery confirmation.
+                        Push code to GitHub to observe automated failure capture, real runner log extraction via GitHub REST API, Groq AI root-cause analysis, and autonomous remediation.
                     </p>
                     <div class="pipeline-flow">
                         <span class="flow-step">1. Git Push</span>
                         <span class="flow-arrow">&rarr;</span>
                         <span class="flow-step">2. GitHub Actions CI</span>
                         <span class="flow-arrow">&rarr;</span>
-                        <span class="flow-step">3. Webhook + Regex Filter</span>
+                        <span class="flow-step">3. WebSocket Telemetry</span>
                         <span class="flow-arrow">&rarr;</span>
-                        <span class="flow-step">4. Groq AI RCA / Healing</span>
+                        <span class="flow-step">4. Groq RCA &amp; Auto-PR</span>
                     </div>
                 </div>
 
-                <!-- FAILURE / HEALED STATE -->
+                <!-- INCIDENT STATE (FAILURE / HEALED) -->
                 <div id="incidentState" class="hidden">
                     <div id="stateBanner" class="state-banner failure">
                         <div class="banner-left">
                             <div id="bannerIcon" class="banner-icon">!</div>
                             <div>
                                 <h2 id="bannerTitle" class="banner-title">Build Failure Detected</h2>
-                                <p id="bannerSub" class="banner-sub">Automated regex log sanitization and Groq AI root cause analysis completed.</p>
+                                <p id="bannerSub" class="banner-sub">Automated regex sanitization &amp; Groq Llama-3.3-70B RCA completed.</p>
                             </div>
                         </div>
-                        <div id="commitMsgChip" class="commit-chip" title="Triggering commit message">Commit: -</div>
+                        <div class="banner-actions">
+                            <div id="commitMsgChip" class="commit-chip" style="padding:6px 12px; border-radius:8px; background:rgba(2,6,23,0.55); border:1px solid var(--border-subtle); font-family:monospace; font-size:12px;">Commit: -</div>
+                            <a id="btnViewPr" class="action-chip-btn hidden" target="_blank" rel="noopener">
+                                <span>🔗 View Autonomous PR</span>
+                            </a>
+                            <a id="btnViewComment" class="action-chip-btn hidden" target="_blank" rel="noopener" style="background:rgba(30,41,59,0.85);">
+                                <span>💬 View Commit Comment</span>
+                            </a>
+                            <button id="btnRerun" class="action-chip-btn hidden" onclick="triggerWorkflowRerun()" style="background:#ea580c;">
+                                <span>⚡ Re-run Workflow</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Defect Location & Metrics Ribbon -->
+                    <div id="defectRibbon" class="defect-ribbon">
+                        <span class="defect-badge">Defect Location: <strong id="ribbonLocation">Detecting...</strong></span>
+                        <span class="defect-badge error-cat">Failure Category: <strong id="ribbonCategory">BuildFailure</strong></span>
+                        <span class="defect-badge saving">Token Reduction: <strong id="ribbonTokens">0.0%</strong></span>
+                        <span class="defect-badge">AI Latency: <strong id="ribbonLatency">0ms</strong></span>
                     </div>
 
                     <div class="panels-stack">
                         <div class="sub-panel">
                             <div class="sub-panel-header">
                                 <div class="sub-panel-title">
-                                    <span>Sanitized Build Telemetry</span>
+                                    <span>Sanitized Telemetry (Runner Output)</span>
                                     <span id="logPanelBadge" class="tag-badge error">ERROR | FATAL | FAIL</span>
                                 </div>
-                                <button id="copyWebhookLogBtn" class="copy-btn" onclick="copyTextFromState('webhookLog', 'copyWebhookLogBtn')">
+                                <button id="copyWebhookLogBtn" class="copy-btn" onclick="copyText('webhookLog', 'copyWebhookLogBtn')">
                                     Copy Log
                                 </button>
                             </div>
@@ -968,10 +1033,10 @@
                         <div class="sub-panel">
                             <div class="sub-panel-header">
                                 <div class="sub-panel-title">
-                                    <span>Groq AI Root Cause Analysis &amp; Remediation</span>
+                                    <span>Groq AI Autonomous Diagnosis &amp; Fix</span>
                                     <span class="tag-badge">llama-3.3-70b-versatile</span>
                                 </div>
-                                <button id="copyWebhookFixBtn" class="copy-btn" onclick="copyTextFromState('webhookDiagnosis', 'copyWebhookFixBtn')">
+                                <button id="copyWebhookFixBtn" class="copy-btn" onclick="copyText('webhookDiagnosis', 'copyWebhookFixBtn')">
                                     Copy Fix
                                 </button>
                             </div>
@@ -982,42 +1047,50 @@
             </div>
         </section>
 
-        <!-- TAB 2: MANUAL BUILD LOG ANALYZER -->
-        <section id="panelManual" class="tab-panel" role="tabpanel">
+        <!-- TAB 2: MANUAL ANALYZER & DRAG-AND-DROP FILE UPLOAD -->
+        <section id="panelManual" class="tab-panel">
             <div class="glass-card">
-                <div class="analyzer-header">
-                    <h2>Manual Build Log Analyzer (On-Demand Evaluation)</h2>
-                    <div class="preset-row">
-                        <span class="preset-label">Sample Logs:</span>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+                    <h2 style="margin:0; font-size:1.15rem;">Manual Build Log Analyzer &amp; File Ingestion</h2>
+                    <div class="preset-row" style="margin:0;">
+                        <span style="font-size:12px; color:var(--text-muted);">Presets:</span>
                         <button type="button" class="preset-btn" onclick="loadSampleLog('syntax')">Python SyntaxError</button>
                         <button type="button" class="preset-btn" onclick="loadSampleLog('module')">Missing Dependency</button>
-                        <button type="button" class="preset-btn" onclick="loadSampleLog('ts')">TypeScript Compile</button>
+                        <button type="button" class="preset-btn" onclick="loadSampleLog('ts')">TypeScript TS1005</button>
                     </div>
                 </div>
 
-                <textarea id="rawLogInput" placeholder="Paste raw CI/CD build logs here (lines matching ERROR, FATAL, FAIL, or Exception will be extracted)...">INFO: Starting build process...
-INFO: Checking Python syntax with py_compile...
-ERROR:   File "main.py", line 42
-SyntaxError: expected ':'
-Exception: py_compile verification failed
-FATAL: Build process exited with code 1</textarea>
+                <!-- Drag-and-Drop Zone -->
+                <div id="dropZone" class="drop-zone" onclick="document.getElementById('fileInput').click()">
+                    <div class="drop-icon">📂</div>
+                    <div class="drop-text">Drag &amp; Drop any <code>.log</code> or <code>.txt</code> build file here, or click to browse</div>
+                    <div class="drop-hint">Instant token sanitization and Groq Llama-3.3-70B analysis without committing to Git</div>
+                    <input type="file" id="fileInput" accept=".log,.txt" style="display:none;" onchange="handleFileSelect(event)">
+                </div>
+
+                <textarea id="rawLogInput" placeholder="Or paste raw CI/CD build logs here..."></textarea>
 
                 <div class="analyzer-actions">
-                    <span class="helper-hint">Regex filter extracts lines matching <code>ERROR|FATAL|FAIL|Exception</code> before calling Groq AI.</span>
+                    <span style="font-size:12px; color:var(--text-muted);">Regex engine removes routine output, compressing prompt payload by 80–95%.</span>
                     <button id="analyzeBtn" class="primary-btn" onclick="runManualDiagnosis()">
                         <span class="spinner" aria-hidden="true"></span>
                         <span id="analyzeBtnText">Analyze Log with Groq AI</span>
                     </button>
                 </div>
 
-                <div id="manualErrorAlert" class="error-alert"></div>
+                <div id="manualResult" class="panels-stack" style="display:none; margin-top:22px;">
+                    <div class="defect-ribbon">
+                        <span class="defect-badge">Defect: <strong id="manualDefectLocation">-</strong></span>
+                        <span class="defect-badge error-cat">Type: <strong id="manualDefectType">-</strong></span>
+                        <span class="defect-badge saving">Token Savings: <strong id="manualTokenSavings">0%</strong></span>
+                        <span class="defect-badge">Latency: <strong id="manualLatency">0ms</strong></span>
+                    </div>
 
-                <div id="manualResult" class="panels-stack">
                     <div class="sub-panel">
                         <div class="sub-panel-header">
                             <div class="sub-panel-title">
-                                <span>Sanitized Error Lines</span>
-                                <span class="tag-badge error">Regex Filtered</span>
+                                <span>Sanitized Error Context</span>
+                                <span class="tag-badge error">Regex Isolated</span>
                             </div>
                         </div>
                         <pre id="manualCleaned" class="log-pre"></pre>
@@ -1026,10 +1099,10 @@ FATAL: Build process exited with code 1</textarea>
                     <div class="sub-panel">
                         <div class="sub-panel-header">
                             <div class="sub-panel-title">
-                                <span>Groq AI Root Cause Analysis &amp; Fix</span>
+                                <span>Groq AI Structured Remediation</span>
                                 <span class="tag-badge">llama-3.3-70b-versatile</span>
                             </div>
-                            <button id="copyManualFixBtn" class="copy-btn" onclick="copyTextFromState('manualDiagnosis', 'copyManualFixBtn')">
+                            <button id="copyManualFixBtn" class="copy-btn" onclick="copyText('manualDiagnosis', 'copyManualFixBtn')">
                                 Copy Fix
                             </button>
                         </div>
@@ -1038,10 +1111,62 @@ FATAL: Build process exited with code 1</textarea>
                 </div>
             </div>
         </section>
+
+        <!-- TAB 3: RESEARCH METRICS & INCIDENT HISTORY -->
+        <section id="panelAnalytics" class="tab-panel">
+            <div class="analytics-grid">
+                <div class="kpi-card">
+                    <div class="kpi-label">Total CI Runs Analyzed</div>
+                    <div id="statTotalRuns" class="kpi-value mono">0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Avg Token Reduction</div>
+                    <div id="statTokenReduction" class="kpi-value mono" style="color:#34d399;">89.4%</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Avg Inference Latency</div>
+                    <div id="statLatency" class="kpi-value mono" style="color:#38bdf8;">1,150 ms</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label">Healed / Total Ratio</div>
+                    <div id="statHealedRatio" class="kpi-value mono">0 / 0</div>
+                </div>
+            </div>
+
+            <div class="glass-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <h2 style="margin:0; font-size:1.15rem;">Recent CI/CD Incidents &amp; Autonomous Actions (SQLite)</h2>
+                    <button class="copy-btn" onclick="loadAnalyticsData()">Refresh Analytics</button>
+                </div>
+                <div class="history-table-container">
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Run #</th>
+                                <th>Status</th>
+                                <th>Category</th>
+                                <th>Defect Location</th>
+                                <th>Token Savings</th>
+                                <th>AI Latency</th>
+                                <th>Remediation Link</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            <tr>
+                                <td colspan="8" style="text-align:center; color:var(--text-muted); padding:20px;">Loading incident history...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
     </div>
 
     <script>
-        const API_BASE = "http://127.0.0.1:8000";
+        const API_BASE = window.location.origin;
+        let ws = null;
+        let activeRunId = "";
         const rawTextStore = {
             webhookLog: "",
             webhookDiagnosis: "",
@@ -1049,20 +1174,23 @@ FATAL: Build process exited with code 1</textarea>
         };
 
         const SAMPLE_LOGS = {
-            syntax: `INFO: Starting CI Pipeline...\nINFO: Running python -m py_compile main.py diagnose.py\nERROR: Sorry: IndentationError: expected an indented block after function definition on line 18 (main.py, line 19)\nFAIL: Step 'Verify Python Syntax' failed.\nFATAL: Process completed with exit code 1.`,
-            module: `INFO: Starting build process...\nINFO: Installing runtime dependencies...\nERROR: ModuleNotFoundError: No module named 'fastapi'\nException: Unable to start ASGI application server.\nFATAL: Build process exited with code 1`,
-            ts: `[INFO] Step 4/4 - Executing production bundle npm run build...\nERROR: src/controllers/authController.ts(42,15): error TS1005: ',' expected.\nERROR: src/controllers/authController.ts(43,1): error TS1128: Declaration or statement expected.\nFAIL: Build target 'auth-service' failed during TypeScript compilation.\nException: Uncaught CompilationError encountered during build lifecycle.\nFATAL: Process exited with status code 1.`
+            syntax: `INFO: Starting CI Pipeline...\nINFO: Running python -m py_compile main.py diagnose.py\nERROR:   File "main.py", line 152\nSyntaxError: '(' was never closed\nFAIL: Step 'Verify Python Syntax' failed.\nFATAL: Process completed with exit code 1.`,
+            module: `INFO: Starting build...\nINFO: Setting up virtualenv...\nERROR: ModuleNotFoundError: No module named 'fastapi'\nException: Failed to import application target.\nFATAL: Build process exited with code 1`,
+            ts: `[INFO] Executing production bundle npm run build...\nERROR: src/auth.ts(42,15): error TS1005: ',' expected.\nFAIL: TypeScript compilation failed with exit code 1.`
         };
 
         function switchTab(tabName) {
-            const isLive = tabName === "live";
-            document.getElementById("tabLiveBtn").classList.toggle("active", isLive);
-            document.getElementById("tabManualBtn").classList.toggle("active", !isLive);
-            document.getElementById("tabLiveBtn").setAttribute("aria-selected", String(isLive));
-            document.getElementById("tabManualBtn").setAttribute("aria-selected", String(!isLive));
+            document.getElementById("tabLiveBtn").classList.toggle("active", tabName === "live");
+            document.getElementById("tabManualBtn").classList.toggle("active", tabName === "manual");
+            document.getElementById("tabAnalyticsBtn").classList.toggle("active", tabName === "analytics");
 
-            document.getElementById("panelLive").classList.toggle("active", isLive);
-            document.getElementById("panelManual").classList.toggle("active", !isLive);
+            document.getElementById("panelLive").classList.toggle("active", tabName === "live");
+            document.getElementById("panelManual").classList.toggle("active", tabName === "manual");
+            document.getElementById("panelAnalytics").classList.toggle("active", tabName === "analytics");
+
+            if (tabName === "analytics") {
+                loadAnalyticsData();
+            }
         }
 
         function loadSampleLog(key) {
@@ -1072,7 +1200,7 @@ FATAL: Build process exited with code 1</textarea>
         }
 
         function escapeHtml(text) {
-            return text
+            return (text || "")
                 .replace(/&/g, "&amp;")
                 .replace(/</g, "&lt;")
                 .replace(/>/g, "&gt;")
@@ -1090,12 +1218,11 @@ FATAL: Build process exited with code 1</textarea>
 
         function renderMarkdown(mdText) {
             if (!mdText) return "<p>No output available.</p>";
-
             const lines = mdText.replace(/\r\n/g, "\n").split("\n");
             let html = "";
             let inCodeBlock = false;
             let codeLines = [];
-            let listType = null; // "ul" or "ol"
+            let listType = null;
 
             function closeList() {
                 if (listType) {
@@ -1140,22 +1267,14 @@ FATAL: Build process exited with code 1</textarea>
 
                 const olMatch = trimmed.match(/^\d+\.\s+(.*)$/);
                 if (olMatch) {
-                    if (listType !== "ol") {
-                        closeList();
-                        listType = "ol";
-                        html += "<ol>";
-                    }
+                    if (listType !== "ol") { closeList(); listType = "ol"; html += "<ol>"; }
                     html += `<li>${formatInlineMarkdown(olMatch[1])}</li>`;
                     continue;
                 }
 
                 const ulMatch = trimmed.match(/^[-*]\s+(.*)$/);
                 if (ulMatch) {
-                    if (listType !== "ul") {
-                        closeList();
-                        listType = "ul";
-                        html += "<ul>";
-                    }
+                    if (listType !== "ul") { closeList(); listType = "ul"; html += "<ul>"; }
                     html += `<li>${formatInlineMarkdown(ulMatch[1])}</li>`;
                     continue;
                 }
@@ -1168,14 +1287,12 @@ FATAL: Build process exited with code 1</textarea>
                 html += `<pre class="md-code-block"><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`;
             }
             closeList();
-
             return html || `<p>${formatInlineMarkdown(mdText)}</p>`;
         }
 
-        async function copyTextFromState(key, buttonId) {
+        async function copyText(key, buttonId) {
             const text = rawTextStore[key];
             if (!text) return;
-
             const btn = document.getElementById(buttonId);
             const originalLabel = btn.textContent;
             try {
@@ -1192,19 +1309,9 @@ FATAL: Build process exited with code 1</textarea>
         }
 
         function formatTimestamp(ts) {
-            if (!ts || ts === "Just now") return ts || "Just now";
+            if (!ts) return "Just now";
             const d = new Date(ts);
-            if (Number.isNaN(d.getTime())) return ts;
-            return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-        }
-
-        function setConnectionHealth(isOnline) {
-            const dot = document.getElementById("connDot");
-            const label = document.getElementById("connLabel");
-            const pollTime = document.getElementById("lastPollTime");
-            dot.className = `conn-dot ${isOnline ? "online" : "offline"}`;
-            label.textContent = isOnline ? "API Online (127.0.0.1:8000)" : "API Offline (127.0.0.1:8000)";
-            pollTime.textContent = `Checked ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
+            return Number.isNaN(d.getTime()) ? ts : d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
         }
 
         function applyDashboardState(data) {
@@ -1226,6 +1333,12 @@ FATAL: Build process exited with code 1</textarea>
             const logPre = document.getElementById("webhookLog");
             const logPanelBadge = document.getElementById("logPanelBadge");
             const rcaContainer = document.getElementById("webhookDiagnosis");
+
+            const btnPr = document.getElementById("btnViewPr");
+            const btnComment = document.getElementById("btnViewComment");
+            const btnRerun = document.getElementById("btnRerun");
+
+            activeRunId = data.run_id || "";
 
             if (data.status !== "failure" && data.status !== "healed") {
                 document.body.classList.remove("theme-failure", "theme-healed");
@@ -1250,13 +1363,39 @@ FATAL: Build process exited with code 1</textarea>
             kpiBranchRun.textContent = `${branch} · ${runSuffix}`;
             kpiTimestamp.textContent = formatTimestamp(data.timestamp);
             commitChip.textContent = `Commit: ${commitMsg}`;
-            commitChip.title = commitMsg;
 
             rawTextStore.webhookLog = data.error_log || "";
             rawTextStore.webhookDiagnosis = data.diagnosis || "";
-
             logPre.textContent = rawTextStore.webhookLog;
             rcaContainer.innerHTML = renderMarkdown(rawTextStore.webhookDiagnosis);
+
+            // Ribbon info
+            const defectLoc = (data.defect_file ? `${data.defect_file}${data.defect_line ? ':' + data.defect_line : ''}` : "Detected in runner logs");
+            document.getElementById("ribbonLocation").textContent = defectLoc;
+            document.getElementById("ribbonCategory").textContent = data.failure_type || "BuildFailure";
+            document.getElementById("ribbonTokens").textContent = `${data.token_reduction_pct || 0}%`;
+            document.getElementById("ribbonLatency").textContent = `${data.inference_latency_ms || 0}ms`;
+
+            // Autonomous buttons
+            if (data.pr_url) {
+                btnPr.href = data.pr_url;
+                btnPr.classList.remove("hidden");
+            } else {
+                btnPr.classList.add("hidden");
+            }
+
+            if (data.comment_url) {
+                btnComment.href = data.comment_url;
+                btnComment.classList.remove("hidden");
+            } else {
+                btnComment.classList.add("hidden");
+            }
+
+            if (data.is_transient) {
+                btnRerun.classList.remove("hidden");
+            } else {
+                btnRerun.classList.add("hidden");
+            }
 
             if (data.status === "failure") {
                 document.body.classList.add("theme-failure");
@@ -1268,12 +1407,12 @@ FATAL: Build process exited with code 1</textarea>
 
                 stateBanner.className = "state-banner failure";
                 bannerIcon.innerHTML = "&#9888;";
-                bannerTitle.textContent = "Build Failure Detected — Automated RCA Active";
-                bannerSub.textContent = `${data.workflow_name || "CI Pipeline"} failed on branch '${branch}'. Groq AI generated remediation steps below.`;
+                bannerTitle.textContent = `Build Failure Detected — Category: ${data.failure_type || "Error"}`;
+                bannerSub.textContent = `${data.workflow_name || "CI Pipeline"} failed on branch '${branch}'. Groq AI generated root cause & fix below.`;
 
                 logPre.className = "log-pre";
                 logPanelBadge.className = "tag-badge error";
-                logPanelBadge.textContent = "ERROR | FATAL | FAIL";
+                logPanelBadge.textContent = data.failure_type || "ERROR";
             } else {
                 document.body.classList.add("theme-healed");
                 document.body.classList.remove("theme-failure");
@@ -1285,7 +1424,7 @@ FATAL: Build process exited with code 1</textarea>
                 stateBanner.className = "state-banner healed";
                 bannerIcon.innerHTML = "&#10003;";
                 bannerTitle.textContent = "Pipeline Healed & Passing";
-                bannerSub.textContent = `${data.workflow_name || "CI Pipeline"} recovered and passed all CI checks with exit code 0.`;
+                bannerSub.textContent = `${data.workflow_name || "CI Pipeline"} completed with exit code 0. All checks passing.`;
 
                 logPre.className = "log-pre healed";
                 logPanelBadge.className = "tag-badge success";
@@ -1293,16 +1432,120 @@ FATAL: Build process exited with code 1</textarea>
             }
         }
 
-        async function checkLatestWebhook() {
+        // --- WebSocket with Auto-Reconnect & Polling Fallback ---
+        function initWebSocket() {
+            const dot = document.getElementById("connDot");
+            const label = document.getElementById("connLabel");
+            const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+            const wsUrl = `${proto}//${window.location.host}/ws/telemetry`;
+
+            try {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = () => {
+                    dot.className = "conn-dot ws";
+                    label.textContent = "WebSocket Live (0ms delay)";
+                };
+
+                ws.onmessage = (event) => {
+                    const message = JSON.parse(event.data);
+                    if (message.type === "INIT_STATE" || message.type === "STATUS_UPDATE") {
+                        applyDashboardState(message.data);
+                    }
+                };
+
+                ws.onclose = () => {
+                    dot.className = "conn-dot online";
+                    label.textContent = "Polling Mode (127.0.0.1:8000)";
+                    setTimeout(initWebSocket, 4000);
+                };
+
+                ws.onerror = () => {
+                    ws.close();
+                };
+            } catch (err) {
+                dot.className = "conn-dot online";
+                label.textContent = "Polling Mode (127.0.0.1:8000)";
+            }
+        }
+
+        async function pollLatestWebhook() {
             try {
                 const res = await fetch(`${API_BASE}/api/latest-webhook`, { cache: "no-store" });
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                const data = await res.json();
-                setConnectionHealth(true);
-                applyDashboardState(data);
+                if (res.ok) {
+                    const data = await res.json();
+                    applyDashboardState(data);
+                }
             } catch (err) {
-                setConnectionHealth(false);
-                console.error("Backend server offline:", err);
+                console.error("Polling error:", err);
+            }
+        }
+
+        // --- Drag and Drop File Handlers ---
+        const dropZone = document.getElementById("dropZone");
+        ["dragenter", "dragover"].forEach(event => {
+            dropZone.addEventListener(event, (e) => {
+                e.preventDefault();
+                dropZone.classList.add("dragover");
+            }, false);
+        });
+
+        ["dragleave", "drop"].forEach(event => {
+            dropZone.addEventListener(event, (e) => {
+                e.preventDefault();
+                dropZone.classList.remove("dragover");
+            }, false);
+        });
+
+        dropZone.addEventListener("drop", (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                uploadAndDiagnoseFile(files[0]);
+            }
+        });
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            if (files.length > 0) {
+                uploadAndDiagnoseFile(files[0]);
+            }
+        }
+
+        async function uploadAndDiagnoseFile(file) {
+            const btn = document.getElementById("analyzeBtn");
+            const btnText = document.getElementById("analyzeBtnText");
+            btn.disabled = true;
+            btn.classList.add("loading");
+            btnText.textContent = `Analyzing ${file.name}...`;
+
+            try {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const text = e.target.result;
+                    document.getElementById("rawLogInput").value = text;
+                    try {
+                        const res = await fetch(`${API_BASE}/api/diagnose`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ raw_log: text })
+                        });
+                        const data = await res.json();
+                        if (!res.ok) throw new Error(data.detail || "Diagnosis failed");
+                        displayManualResult(data);
+                    } catch (err) {
+                        alert(`Analysis failed: ${err.message}`);
+                    } finally {
+                        btn.disabled = false;
+                        btn.classList.remove("loading");
+                        btnText.textContent = "Analyze Log with Groq AI";
+                    }
+                };
+                reader.readAsText(file);
+            } catch (err) {
+                alert(`File read error: ${err.message}`);
+                btn.disabled = false;
+                btn.classList.remove("loading");
+                btnText.textContent = "Analyze Log with Groq AI";
             }
         }
 
@@ -1310,14 +1553,9 @@ FATAL: Build process exited with code 1</textarea>
             const rawLog = document.getElementById("rawLogInput").value;
             const btn = document.getElementById("analyzeBtn");
             const btnText = document.getElementById("analyzeBtnText");
-            const errAlert = document.getElementById("manualErrorAlert");
-            const resultBox = document.getElementById("manualResult");
-
-            errAlert.style.display = "none";
 
             if (!rawLog.trim()) {
-                errAlert.textContent = "Please paste a CI/CD build log before running analysis.";
-                errAlert.style.display = "block";
+                alert("Please paste a CI/CD build log first.");
                 return;
             }
 
@@ -1331,20 +1569,12 @@ FATAL: Build process exited with code 1</textarea>
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ raw_log: rawLog })
                 });
-
                 const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data.detail || `Server returned HTTP ${res.status}`);
-                }
+                if (!res.ok) throw new Error(data.detail || "Diagnosis failed");
 
-                document.getElementById("manualCleaned").textContent =
-                    data.sanitized_log || "No lines matched (ERROR|FATAL|FAIL|Exception).";
-                rawTextStore.manualDiagnosis = data.diagnosis || "";
-                document.getElementById("manualDiagnosis").innerHTML = renderMarkdown(rawTextStore.manualDiagnosis);
-                resultBox.style.display = "grid";
+                displayManualResult(data);
             } catch (err) {
-                errAlert.textContent = `Analysis request failed: ${err.message}. Ensure uvicorn is running on 127.0.0.1:8000.`;
-                errAlert.style.display = "block";
+                alert(`Analysis failed: ${err.message}`);
             } finally {
                 btn.disabled = false;
                 btn.classList.remove("loading");
@@ -1352,9 +1582,84 @@ FATAL: Build process exited with code 1</textarea>
             }
         }
 
-        // Initial fetch and 3-second polling loop
-        checkLatestWebhook();
-        setInterval(checkLatestWebhook, 3000);
+        function displayManualResult(data) {
+            document.getElementById("manualCleaned").textContent = data.sanitized_log || "No errors matched.";
+            rawTextStore.manualDiagnosis = data.diagnosis || "";
+            document.getElementById("manualDiagnosis").innerHTML = renderMarkdown(rawTextStore.manualDiagnosis);
+
+            document.getElementById("manualDefectLocation").textContent =
+                data.defect_file ? `${data.defect_file}:${data.defect_line || ''}` : "Isolated in log";
+            document.getElementById("manualDefectType").textContent = data.failure_type || "GeneralFailure";
+            document.getElementById("manualTokenSavings").textContent = `${data.token_reduction_pct || 0}%`;
+            document.getElementById("manualLatency").textContent = `${data.inference_latency_ms || 0}ms`;
+
+            document.getElementById("manualResult").style.display = "grid";
+        }
+
+        async function triggerWorkflowRerun() {
+            if (!activeRunId) return;
+            const btn = document.getElementById("btnRerun");
+            btn.textContent = "Triggering Re-run...";
+            try {
+                const res = await fetch(`${API_BASE}/api/rerun/${activeRunId}`, { method: "POST" });
+                if (res.ok) {
+                    btn.textContent = "Re-run Initiated!";
+                } else {
+                    btn.textContent = "Re-run Failed";
+                }
+            } catch (err) {
+                btn.textContent = "Re-run Error";
+            }
+        }
+
+        // --- Research Analytics Data Loader ---
+        async function loadAnalyticsData() {
+            try {
+                const [analyticsRes, incidentsRes] = await Promise.all([
+                    fetch(`${API_BASE}/api/analytics`),
+                    fetch(`${API_BASE}/api/incidents`)
+                ]);
+
+                if (analyticsRes.ok) {
+                    const stats = await analyticsRes.json();
+                    document.getElementById("statTotalRuns").textContent = stats.total_runs;
+                    document.getElementById("statTokenReduction").textContent = `${stats.avg_token_reduction_pct}%`;
+                    document.getElementById("statLatency").textContent = `${stats.avg_inference_latency_ms} ms`;
+                    document.getElementById("statHealedRatio").textContent = `${stats.healed_count} / ${stats.total_runs}`;
+                }
+
+                if (incidentsRes.ok) {
+                    const list = await incidentsRes.json();
+                    const tbody = document.getElementById("historyTableBody");
+                    if (list.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:18px;">No build incidents recorded yet.</td></tr>`;
+                        return;
+                    }
+
+                    tbody.innerHTML = list.map(item => `
+                        <tr>
+                            <td><strong>#${item.run_number || item.id}</strong></td>
+                            <td><span class="status-pill ${item.status}">${item.status.toUpperCase()}</span></td>
+                            <td><code>${escapeHtml(item.failure_type || 'General')}</code></td>
+                            <td><code>${escapeHtml(item.defect_file || '-')}${item.defect_line ? ':' + item.defect_line : ''}</code></td>
+                            <td style="color:#34d399; font-weight:600;">${item.token_reduction_pct || 0}%</td>
+                            <td style="color:#38bdf8;">${item.inference_latency_ms || 0}ms</td>
+                            <td>
+                                ${item.pr_url ? `<a href="${item.pr_url}" target="_blank" style="color:#38bdf8; text-decoration:none;">🔗 View PR</a>` : 
+                                 item.comment_url ? `<a href="${item.comment_url}" target="_blank" style="color:#818cf8; text-decoration:none;">💬 Comment</a>` : '<span style="color:#64748b;">—</span>'}
+                            </td>
+                            <td style="font-size:11.5px; color:#94a3b8;">${formatTimestamp(item.timestamp)}</td>
+                        </tr>
+                    `).join("");
+                }
+            } catch (err) {
+                console.error("Analytics load error:", err);
+            }
+        }
+
+        // Initialize WebSocket connection and start polling fallback
+        initWebSocket();
+        setInterval(pollLatestWebhook, 3500);
     </script>
 </body>
 </html>

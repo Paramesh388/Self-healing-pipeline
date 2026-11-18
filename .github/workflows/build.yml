@@ -18,7 +18,7 @@ jobs:
         run: |
           echo "Starting build..."
           set +e
-          python -m py_compile main.py diagnose.py > build.log 2>&1
+          python -m py_compile main.py diagnose.py db.py github_client.py > build.log 2>&1
           result=$?
           cat build.log
           if [ "$result" -eq 0 ]; then
@@ -36,9 +36,10 @@ jobs:
           REPOSITORY: ${{ github.repository }}
           BRANCH: ${{ github.ref_name }}
           COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
           if [ -z "$PIPELINE_WEBHOOK_URL" ] || [ -z "$CI_REPORT_TOKEN" ]; then
-            echo "::warning::Set PIPELINE_WEBHOOK_URL and CI_REPORT_TOKEN repository secrets to send exact build errors to the dashboard."
+            echo "::notice::Direct reporting URL not set. Dashboard will use GitHub API / webhook extraction."
             exit 0
           fi
           python - <<'PY'
@@ -54,6 +55,7 @@ jobs:
               "repo": os.environ["REPOSITORY"],
               "branch": os.environ["BRANCH"],
               "commit_msg": os.environ.get("COMMIT_MESSAGE", ""),
+              "commit_sha": os.environ.get("COMMIT_SHA", ""),
               "raw_log": raw_log,
           }
           request = urllib.request.Request(
@@ -65,6 +67,9 @@ jobs:
               },
               method="POST",
           )
-          with urllib.request.urlopen(request, timeout=20) as response:
-              print("Dashboard accepted compiler output:", response.status)
+          try:
+              with urllib.request.urlopen(request, timeout=20) as response:
+                  print("Dashboard accepted compiler output:", response.status)
+          except Exception as e:
+              print("Notice: Direct reporting skipped:", e)
           PY
