@@ -146,5 +146,3 @@ async def handle_github_webhook(request: Request):
             }
 
     return {"status": "success", "message": "Webhook processed"}
-
-def broken_demo(
