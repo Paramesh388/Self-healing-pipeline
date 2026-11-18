@@ -8,7 +8,9 @@ from dataclasses import dataclass, field
 from typing import List
 from openai import OpenAI, NotFoundError
 
-LOG_ERROR_PATTERN = re.compile(r"(ERROR|FATAL|FAIL|Exception)")
+LOG_ERROR_PATTERN = re.compile(
+    r"(ERROR|FATAL|FAIL|Exception|SyntaxError|IndentationError)", re.IGNORECASE
+)
 
 # Configure UTF-8 output encoding for Windows terminals to support rich characters
 if hasattr(sys.stdout, "reconfigure"):
@@ -32,15 +34,28 @@ config = AppConfig()
 
 def clean_log_text(raw_text: str) -> str:
     """
-    Filters raw log text to retain only lines containing
-    'ERROR', 'FATAL', 'FAIL', or 'Exception'.
+    Keep error lines together with nearby traceback/source context so file paths,
+    line numbers, and the code around a compiler error survive sanitization.
     """
-    matching_lines = [
-        line.rstrip("\r")
-        for line in raw_text.splitlines()
-        if LOG_ERROR_PATTERN.search(line)
-    ]
-    return "\n".join(matching_lines)
+    lines = raw_text.splitlines()
+    selected = set()
+    for index, line in enumerate(lines):
+        if LOG_ERROR_PATTERN.search(line):
+            # Python tracebacks put the file and source line before the final
+            # SyntaxError/IndentationError line. Include nearby lines both ways.
+            selected.update(range(max(0, index - 5), min(len(lines), index + 3)))
+
+    if not selected:
+        return ""
+
+    result = []
+    previous = -2
+    for index in sorted(selected):
+        if index > previous + 1:
+            result.append("...")
+        result.append(lines[index].rstrip("\r"))
+        previous = index
+    return "\n".join(result)
 
 
 def clean_log(log_path: str = None) -> str:
@@ -74,8 +89,12 @@ def diagnose_error(cleaned_logs: str, cfg: AppConfig = config) -> str:
     )
 
     system_prompt = (
-        "You are an expert DevOps engineer. Analyze this CI/CD log. "
-        "Provide the 'Root Cause' in one sentence, followed by a 'Step-by-Step Fix'."
+        "You are an expert DevOps engineer. Analyze the actual CI/CD build output. "
+        "Identify the exact file and line when the log provides them, quote the "
+        "specific offending code briefly, explain the cause, and give a concrete "
+        "correction. If the log lacks enough detail, say exactly what is missing. "
+        "Never claim you changed or fixed the repository; give instructions for a person. "
+        "Format the response with 'Root Cause' and 'Step-by-Step Fix'."
     )
 
     user_prompt = f"Filtered CI/CD error log:\n```\n{cleaned_logs}\n```"

@@ -14,7 +14,57 @@ jobs:
           python-version: '3.11'
 
       - name: Verify Python Syntax
+        id: syntax_check
         run: |
           echo "Starting build..."
-          python -m py_compile main.py diagnose.py
-          echo "All Python files compiled cleanly with exit code 0!"
+          set +e
+          python -m py_compile main.py diagnose.py > build.log 2>&1
+          result=$?
+          cat build.log
+          if [ "$result" -eq 0 ]; then
+            echo "All Python files compiled cleanly with exit code 0!"
+          fi
+          exit "$result"
+
+      - name: Send compiler output to dashboard
+        if: ${{ failure() && steps.syntax_check.outcome == 'failure' }}
+        env:
+          PIPELINE_WEBHOOK_URL: ${{ secrets.PIPELINE_WEBHOOK_URL }}
+          CI_REPORT_TOKEN: ${{ secrets.CI_REPORT_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_NUMBER: ${{ github.run_number }}
+          REPOSITORY: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          if [ -z "$PIPELINE_WEBHOOK_URL" ] || [ -z "$CI_REPORT_TOKEN" ]; then
+            echo "::warning::Set PIPELINE_WEBHOOK_URL and CI_REPORT_TOKEN repository secrets to send exact build errors to the dashboard."
+            exit 0
+          fi
+          python - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          with open("build.log", encoding="utf-8", errors="replace") as log_file:
+              raw_log = log_file.read()
+          payload = {
+              "run_id": os.environ["RUN_ID"],
+              "run_number": int(os.environ["RUN_NUMBER"]),
+              "repo": os.environ["REPOSITORY"],
+              "branch": os.environ["BRANCH"],
+              "commit_msg": os.environ.get("COMMIT_MESSAGE", ""),
+              "raw_log": raw_log,
+          }
+          request = urllib.request.Request(
+              os.environ["PIPELINE_WEBHOOK_URL"].rstrip("/") + "/api/ci-result",
+              data=json.dumps(payload).encode("utf-8"),
+              headers={
+                  "Content-Type": "application/json",
+                  "X-CI-Report-Token": os.environ["CI_REPORT_TOKEN"],
+              },
+              method="POST",
+          )
+          with urllib.request.urlopen(request, timeout=20) as response:
+              print("Dashboard accepted compiler output:", response.status)
+          PY

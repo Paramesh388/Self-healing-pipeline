@@ -1,4 +1,5 @@
 import os
+import hmac
 from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
@@ -23,6 +24,15 @@ app.add_middleware(CORSMiddleware,
 
 # --- Data Models ---
 class LogPayload(BaseModel):
+    raw_log: str
+
+
+class CIReportPayload(BaseModel):
+    run_id: str
+    run_number: int
+    repo: str
+    branch: str
+    commit_msg: str = ""
     raw_log: str
 
 
@@ -52,7 +62,9 @@ latest_incident = {
     "error_log": "",
     "diagnosis": "",
     "timestamp": "",
+    "run_id": "",
 }
+ci_failure_reports = {}
 
 
 @app.get("/")
@@ -107,15 +119,20 @@ async def handle_github_webhook(request: Request):
         # 1. IF THE BUILD FAILED -> TURN DASHBOARD RED & CALL GROQ AI
         if conclusion == "failure":
             print("Build failed! Triggering Groq AI for root cause analysis...")
-
-            error_context = (
-                f"FATAL: GitHub Actions Workflow '{workflow_name}' (Run #{run_number}) failed.\n"
-                f"Repository: {repo_name} | Branch: {branch_name}\n"
-                f"Triggering Commit: '{commit_msg}'\n"
-                f"ERROR: Process completed with exit code 1 during build step execution."
-            )
-
-            diagnosis = run_ai_diagnosis(error_context)
+            run_id = str(wf.get("id", ""))
+            report = ci_failure_reports.get(run_id)
+            if report:
+                error_context = report["error_log"]
+                diagnosis = report["diagnosis"]
+            else:
+                error_context = (
+                    f"FATAL: GitHub Actions Workflow '{workflow_name}' (Run #{run_number}) failed.\n"
+                    f"Repository: {repo_name} | Branch: {branch_name}\n"
+                    f"Triggering Commit: '{commit_msg}'\n"
+                    "ERROR: Detailed compiler output was not received. Configure "
+                    "PIPELINE_WEBHOOK_URL and CI_REPORT_TOKEN in GitHub Actions secrets."
+                )
+                diagnosis = run_ai_diagnosis(error_context)
 
             latest_incident = {
                 "status": "failure",
@@ -127,6 +144,7 @@ async def handle_github_webhook(request: Request):
                 "error_log": error_context,
                 "diagnosis": diagnosis,
                 "timestamp": updated_at,
+                "run_id": run_id,
             }
 
         # 2. IF THE BUILD SUCCEEDED -> TURN DASHBOARD GREEN (HEALED!)
@@ -143,7 +161,46 @@ async def handle_github_webhook(request: Request):
                 "error_log": f"SUCCESS: Workflow '{workflow_name}' (Run #{run_number}) completed with exit code 0.",
                 "diagnosis": "No errors detected. The previous failure has been resolved and all CI checks passed!",
                 "timestamp": updated_at,
+                "run_id": str(wf.get("id", "")),
             }
 
     return {"status": "success", "message": "Webhook processed"}
-def broken_demo(
+
+
+@app.post("/api/ci-result")
+async def receive_ci_result(payload: CIReportPayload, request: Request):
+    """Receive the compiler output directly from the failed GitHub Actions job."""
+    expected_token = os.getenv("CI_REPORT_TOKEN", "")
+    supplied_token = request.headers.get("X-CI-Report-Token", "")
+    if not expected_token or not hmac.compare_digest(supplied_token, expected_token):
+        raise HTTPException(status_code=401, detail="Invalid CI report token.")
+
+    raw_log = payload.raw_log[:100_000]
+    if not raw_log.strip():
+        raise HTTPException(status_code=400, detail="Build log cannot be empty.")
+
+    error_context = (
+        f"GitHub Actions failed: {payload.repo} / {payload.branch} / Run #{payload.run_number}\n"
+        f"Commit: {payload.commit_msg}\n\n"
+        f"Actual build output:\n{raw_log}"
+    )
+    sanitized = clean_log_text(raw_log)
+    diagnosis = run_ai_diagnosis(sanitized or raw_log)
+    report = {"error_log": error_context, "diagnosis": diagnosis}
+    ci_failure_reports[payload.run_id] = report
+
+    # Usually this report arrives before GitHub's workflow_run webhook. Also
+    # update the dashboard if GitHub's event arrived first.
+    if str(latest_incident.get("run_id", "")) in ("", payload.run_id):
+        latest_incident.update({
+            "status": "failure",
+            "repo": payload.repo,
+            "branch": payload.branch,
+            "commit_msg": payload.commit_msg,
+            "workflow_name": "CI Pipeline",
+            "run_number": payload.run_number,
+            "run_id": payload.run_id,
+            "error_log": error_context,
+            "diagnosis": diagnosis,
+        })
+    return {"status": "received", "run_id": payload.run_id}

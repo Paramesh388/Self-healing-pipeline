@@ -41,6 +41,17 @@ ngrok http 8000
 - ngrok will output an active public URL, for example:  
   `Forwarding https://xxxx-xxxx.ngrok-free.dev -> http://localhost:8000`
 
+#### Step 2.5: Allow GitHub Actions to send the actual build error
+The `workflow_run` webhook tells the dashboard that a run failed, but does not include compiler output. To show the exact file, line, and nearby source, configure a protected report endpoint:
+1. Generate a token in PowerShell with `python -c "import secrets; print(secrets.token_urlsafe(32))"`.
+2. Add `CI_REPORT_TOKEN=<the-generated-token>` to the project's `.env` file, then restart the backend.
+3. In GitHub, open **Settings → Secrets and variables → Actions → New repository secret** and add:
+   - `PIPELINE_WEBHOOK_URL`: the ngrok base URL, for example `https://xxxx-xxxx.ngrok-free.dev` (do not add a path).
+   - `CI_REPORT_TOKEN`: the same generated token as in `.env`.
+4. When ngrok gives you a new URL after restart, update `PIPELINE_WEBHOOK_URL` and the existing GitHub webhook's Payload URL.
+
+On a failed build, the workflow posts its compiler output to the backend. The dashboard then shows that output and asks Groq for a specific cause and correction. It provides repair instructions; it does not edit source files automatically.
+
 #### Step 3: Link GitHub Webhook
 1. Go to your GitHub repository:  
    👉 **`https://github.com/Paramesh388/Self-healing-pipeline/settings/hooks`**
