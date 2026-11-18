@@ -20,7 +20,7 @@ def calculate_invoice(base_amount: float, tier: str, volume: int = 1, coupon: st
 
     tier_multipliers = {
         "STANDARD": 1.0,
-        "PRO": 0.85,
+        "PRO": 0.95,  # BUG: Should be 0.85 (15% discount), but incorrectly set to 5% discount
         "ENTERPRISE": 0.70
     }
     multiplier = tier_multipliers.get(tier.upper(), 1.0)
