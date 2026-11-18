@@ -38,8 +38,8 @@ if hasattr(sys.stdout, "reconfigure"):
 class AppConfig:
     api_key: str = os.getenv("GROQ_API_KEY")
     base_url: str = "https://api.groq.com/openai/v1"
-    model_name: str = "llama-3.3-70b-versatile"
-    fallback_models: List[str] = field(default_factory=lambda: ["openai/gpt-oss-120b", "qwen/qwen3.8-27b"])
+    model_name: str = "openai/gpt-oss-120b"
+    fallback_models: List[str] = field(default_factory=lambda: ["qwen/qwen3.8-27b", "openai/gpt-oss-20b", "llama-3.3-70b-versatile"])
     log_file_path: str = "error.log"
 
 
@@ -143,18 +143,40 @@ def diagnose_structured(cleaned_logs: str, raw_logs: str = "", cfg: AppConfig = 
     # Quick pre-classification
     failure_type, is_transient, defect_file, defect_line = classify_failure(effective_raw)
 
+    # Extract actual source snippet if file is available locally
+    source_context = ""
+    if defect_file and os.path.exists(defect_file) and defect_line and str(defect_line).isdigit():
+        try:
+            target_line = int(defect_line)
+            with open(defect_file, "r", encoding="utf-8", errors="replace") as sf:
+                all_lines = sf.readlines()
+            start = max(0, target_line - 3)
+            end = min(len(all_lines), target_line + 2)
+            source_context = "\n".join(
+                f"{i+1}: {all_lines[i].rstrip()}" for i in range(start, end)
+            )
+        except Exception:
+            pass
+
     client = OpenAI(
         api_key=api_key,
         base_url=cfg.base_url
     )
 
     system_prompt = (
-        "You are an expert autonomous DevOps engineer. Analyze the provided CI/CD error log. "
-        "CRITICAL ACCURACY RULE: Look for explicit compiler/traceback markers like 'File \"...\", line X' or 'error TS'. "
-        "Extract ONLY the exact file and line number explicitly reported by the compiler in the log. "
-        "DO NOT guess, fabricate, or hallucinate line numbers or function names if they are not in the log. "
-        "If no line number is in the log, state: 'Defect Location: Not present in high-level log text'. "
-        "Format your answer with standard markdown containing:\n"
+        "You are an expert autonomous DevOps engineer. Analyze the provided CI/CD error log and source code.\n"
+        "RULES FOR ACCURATE CODE FIX:\n"
+        "1. Identify the exact file and line number explicitly reported by the compiler.\n"
+        "2. IN 'Suggested Code Fix': Provide ONLY the exact, realistic, drop-in replacement for the offending lines.\n"
+        "ABSOLUTE PROHIBITION: NEVER write placeholder parameters like 'param1, param2, param3' or dummy code. "
+        "If a line is an incomplete function header like 'def broken_demo(', the fix must be strictly:\n"
+        "```python\n"
+        "def broken_demo():\n"
+        "    pass\n"
+        "```\n"
+        "or instructing the user to delete the stray line if it was accidentally added.\n"
+        "Keep the code fix 100% clean, exact to the file, and free of imaginary parameters.\n\n"
+        "Format your answer as:\n"
         "### Root Cause\n<one concise sentence>\n\n"
         "### Defect Location\n<file and line number from compiler>\n\n"
         "### Step-by-Step Fix\n<numbered actionable steps>\n\n"
@@ -162,10 +184,11 @@ def diagnose_structured(cleaned_logs: str, raw_logs: str = "", cfg: AppConfig = 
     )
 
     user_prompt = (
-        f"CI/CD error log:\n```\n{cleaned_logs}\n```\n"
-        f"Compiler pre-analysis: Category={failure_type}"
+        f"CI/CD compiler error log:\n```\n{cleaned_logs}\n```\n"
+        + (f"\nActual source code in {defect_file} around line {defect_line}:\n```python\n{source_context}\n```\n" if source_context else "")
+        + f"Compiler pre-analysis: Category={failure_type}"
         + (f", Location={defect_file}:{defect_line}" if defect_file and defect_line else "")
-        + ". Analyze strictly based on this actual log text."
+        + ". Provide the exact root cause and clean, realistic code fix matching the actual code (do not invent placeholder parameters)."
     )
 
     models_to_try = [cfg.model_name] + [m for m in cfg.fallback_models if m != cfg.model_name]
