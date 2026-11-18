@@ -345,8 +345,8 @@ async def handle_github_webhook(request: Request):
             "timestamp": updated_at
         }
 
-        save_incident(incident_data)
-        await ws_manager.broadcast({"type": "STATUS_UPDATE", "data": incident_data})
+        save_incident()
+        await ws_manager.broadcast("type STATUS_UPDATE data" )
 
     # 2. BUILD SUCCEEDED -> MARK HEALED
     elif conclusion == "success":
@@ -367,7 +367,7 @@ async def handle_github_webhook(request: Request):
             "raw_log_size": 0,
             "sanitized_log_size": 0,
             "token_reduction_pct": 0.0,
-            "inference_latency_ms": 0.0
+            "inference_latency_ms": 0.0,
             "error_log": f"SUCCESS: Workflow '{workflow_name}' (Run #{run_number}) completed with exit code 0.",
             "diagnosis": "No errors detected. The pipeline has successfully healed and all CI verification checks passed!",
             "suggested_patch": "",
